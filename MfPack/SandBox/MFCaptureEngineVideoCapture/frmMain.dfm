@@ -14,7 +14,6 @@ object MainWindow: TMainWindow
   OldCreateOrder = False
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
-  OnDestroy = FormDestroy
   DesignSize = (
     1086
     738)
@@ -113,6 +112,7 @@ object MainWindow: TMainWindow
       Caption = 'Capture'
       object mnuStartPreview: TMenuItem
         Caption = 'Start Preview'
+        Enabled = False
         OnClick = mnuStartPreviewClick
       end
       object mnuChooseDevice: TMenuItem
