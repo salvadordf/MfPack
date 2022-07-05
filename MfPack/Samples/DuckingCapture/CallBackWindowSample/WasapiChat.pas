@@ -10,7 +10,7 @@
 // Release date: 04-10-2020
 // Language: ENU
 //
-// Revision Version: 3.1.1
+// Revision Version: 3.1.2
 // Description: WasApi threaded capture class.
 //
 // Organisation: FactoryX
@@ -21,17 +21,17 @@
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
-// 28/10/2021 All                 Bowie release  SDK 10.0.22000.0 (Windows 11)
+// 28/06/2022 All                 Mercury release  SDK 10.0.22621.0 (Windows 11)
 //------------------------------------------------------------------------------
 //
 // Remarks: Note that this sample requires Windows 7 or later.
 //
 // Related objects: -
-// Related projects: MfPackX311
+// Related projects: MfPackX312
 // Known Issues: -
 //
-// Compiler version: 23 up to 34
-// SDK version: 10.0.22000.0
+// Compiler version: 23 up to 35
+// SDK version: 10.0.22621.0
 //
 // Todo: -
 //
@@ -255,10 +255,18 @@ begin
     //
     //  Create our shutdown event - we want an auto reset event that starts in the not-signaled state.
     //
+    {$IF CompilerVersion > 29}
     _ShutdownEvent := CreateEventEx(Nil,
                                     Nil,
                                     0,
                                     EVENT_MODIFY_STATE or SYNCHRONIZE);
+    {$ELSE}
+    _ShutdownEvent := CreateEvent(Nil,
+                                  False,
+                                  True,
+                                  LPCWSTR('ShutdownEvent'));
+    {$ENDIF}
+
     if _ShutdownEvent = 0 then
       begin
         MessageBox(_AppWindow,
@@ -269,10 +277,18 @@ begin
         Exit;
       end;
 
+    {$IF CompilerVersion > 29}
     _AudioSamplesReadyEvent := CreateEventEx(Nil,
                                              Nil,
                                              0,
                                              EVENT_MODIFY_STATE or SYNCHRONIZE);
+
+    {$ELSE}
+    _AudioSamplesReadyEvent := CreateEvent(Nil,
+                                           False,
+                                           True,
+                                           LPCWSTR('AudioSamplesReadyEvent'));
+    {$ENDIF}
     if _ShutdownEvent = 0 then
       begin
         MessageBox(_AppWindow,

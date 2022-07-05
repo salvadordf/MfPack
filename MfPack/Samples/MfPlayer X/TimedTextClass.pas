@@ -22,17 +22,17 @@
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
-// 28/10/2021 All                 Bowie release  SDK 10.0.22000.0 (Windows 11)
+// 28/06/2022 All                 Mercury release  SDK 10.0.22621.0 (Windows 11)
 // ----------------------------------------------------------------------------
 //
 // Remarks: Requires Windows 7 or higher.
 //
 // Related objects: -
-// Related projects: MfPackX311
+// Related projects: MfPackX312
 // Known Issues: -
 //
-// Compiler version: 23 up to 34
-// SDK version: 10.0.22000.0
+// Compiler version: 23 up to 35
+// SDK version: 10.0.22621.0
 //
 // Todo: -
 //
@@ -322,7 +322,9 @@ var
   bFound: Boolean;
 
 label
-  srt, sub;
+  Done,
+  srt,
+  sub;
 
 begin
   hr := S_OK;
@@ -331,26 +333,28 @@ begin
   bFound := False;
   I := 0;
 
-try
   // check if Url has filename
   if (sUrl = '') then
     begin
       hr := ERROR_INVALID_PARAMETER;
-      Exit;
+      goto Done;
     end;
 
   // Check if the file exists
   if Not FileExists(sUrl) then
     begin
       hr := ERROR_FILE_NOT_FOUND;
-      Exit;
+      goto Done;
     end;
 
   UrlFileName := ExtractFilename(sUrl);
   Path := IncludeTrailingPathDelimiter(ExtractFileDir(sUrl));
 
+
+
   // Reset array to 0
-  SetLength(pc_LanguageTags.TimedTxtPropsArray, 0);
+  SetLength(pc_LanguageTags.TimedTxtPropsArray,
+            0);
 
   // Try to find SubRip (.srt) files  TODO:  set the SetPreferredLanguage ?
   pc_LanguageTags.TimedTxtPropsArray := pc_LanguageTags.ReadFileTags(Path + UrlFileName,
@@ -382,7 +386,7 @@ try
   if (Length(pc_LanguageTags.TimedTxtPropsArray) = 0) then
     begin
       hr := ERROR_FILE_NOT_FOUND;
-      Exit;
+      goto Done;
     end;
 
 // from here we try to get the language of the .srt (SubRip) file
@@ -416,7 +420,7 @@ srt:
             end;
         end;
     end;
-  Exit;
+  goto Done;
 
 // from here we try to get the language of the .sub (MicroDvd) file
 sub:
@@ -449,10 +453,10 @@ sub:
             end;
         end;
     end;
-  Exit;
+  goto Done;
 
-finally
-  // store
+Done:
+  // store   goto Done;
   if bFound then
     begin
       sp_Url := pc_LanguageTags.TimedTxtPropsArray[I].sFile;
@@ -460,7 +464,6 @@ finally
       sp_FriendlyLangName := pc_LanguageTags.TimedTxtPropsArray[I].sFriendlyLanguageName
     end;
   Result := hr;
-end;
 end;
 
 
