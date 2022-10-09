@@ -11,7 +11,7 @@
   * Multimedia Device (MMDevice) API
 - Microsoft Media Foundation API (successor of DirectShow).
 - XAudio2 API (XBox game development)
-- Microsoft DirectX API's (D2D1, D3D11, DirectComposition, DXGI, DirectWrite and DXVA)
+- Microsoft DirectX API's (D2D1, D3D9, D3D11, D3D12, DirectComposition, DXGI, DirectWrite and DXVA) Note that D3D11 and above are part of Media Foundation.
 - Windows Imaging Component (WIC) API.
 - MPEG2 API.
 - The COMPLETE Windows Media (WinMM) API.
@@ -23,7 +23,7 @@
 
 # MfPack 
 
-Version X 3.1.2 
+Version X 3.1.3 
 Delphi XE2 up to and including Delphi 12 
 SDK version: 10.0.22621.0 (Windows 11)
 
