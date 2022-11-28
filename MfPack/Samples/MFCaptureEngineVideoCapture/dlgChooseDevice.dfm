@@ -5,7 +5,7 @@ object ChooseDeviceDlg: TChooseDeviceDlg
   BorderStyle = bsDialog
   Caption = 'Select Camera'
   ClientHeight = 281
-  ClientWidth = 695
+  ClientWidth = 718
   Color = clBtnFace
   ParentFont = True
   OldCreateOrder = True
@@ -61,32 +61,33 @@ object ChooseDeviceDlg: TChooseDeviceDlg
     OnClick = lbxDeviceListClick
   end
   object sgResolutions: TStringGrid
-    Left = 277
+    Left = 275
     Top = 34
-    Width = 410
+    Width = 438
     Height = 201
     DefaultRowHeight = 18
     DrawingStyle = gdsClassic
     FixedColor = clSilver
     FixedCols = 0
     RowCount = 2
-    Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRangeSelect, goDrawFocusSelected, goRowSelect]
+    Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goDrawFocusSelected, goRowSelect]
+    ScrollBars = ssVertical
     TabOrder = 3
     OnClick = sgResolutionsClick
     ColWidths = (
-      113
-      57
-      147
-      89
-      80)
+      83
+      108
+      91
+      118
+      64)
   end
   object cbxSupportedFormatsOnly: TCheckBox
-    Left = 277
+    Left = 275
     Top = 13
-    Width = 188
+    Width = 246
     Height = 15
     Hint = 'Un-check if you want to show all formats.'
-    Caption = 'Supported resolutions only'
+    Caption = 'Supported resolutions and framerates only'
     Checked = True
     ParentShowHint = False
     ShowHint = True

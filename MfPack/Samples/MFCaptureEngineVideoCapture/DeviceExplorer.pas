@@ -1,6 +1,71 @@
+// FactoryX
+//
+// Copyright: © FactoryX. All rights reserved.
+//
+// Project: MfPack - MediaFoundation
+// Project location: https://sourceforge.net/projects/MFPack
+//                   https://github.com/FactoryXCode/MfPack
+// Module: DeviceExplorer.pas
+// Kind: Pascal Unit
+// Release date: 18-11-2022
+// Language: ENU
+//
+// Revision Version: 3.1.3
+//
+// Description:
+//   This unit contains the DeviceExplorer class to discover video devices like webcams etc.
+//
+// Organisation: FactoryX
+// Initiator(s): Ciaran
+// Contributor(s): Ciaran, Tony (maXcomX)
+//
+//------------------------------------------------------------------------------
+// CHANGE LOG
+// Date       Person              Reason
+// ---------- ------------------- ----------------------------------------------
+// 28/08/2022 All                 PiL release  SDK 10.0.22621.0 (Windows 11)
+//------------------------------------------------------------------------------
+//
+// Remarks: Requires Windows 10 (2H20) or later.
+//
+// Related objects: -
+// Related projects: MfPackX313/Samples/MFCaptureEngineVideoCapture
+//
+// Compiler version: 23 up to 35
+// SDK version: 10.0.22621.0
+//
+// Todo: -
+//
+//==============================================================================
+// Source: -
+//==============================================================================
+//
+// LICENSE
+//
+//  The contents of this file are subject to the
+//  GNU General Public License v3.0 (the "License");
+//  you may not use this file except in
+//  compliance with the License. You may obtain a copy of the License at
+//  https://www.gnu.org/licenses/gpl-3.0.html
+//
+// Software distributed under the License is distributed on an "AS IS"
+// basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
+// License for the specific language governing rights and limitations
+// under the License.
+//
+// Non commercial users may distribute this sourcecode provided that this
+// header is included in full at the top of the file.
+// Commercial users are not allowed to distribute this sourcecode as part of
+// their product without implicit permission.
+//
+//==============================================================================
 unit DeviceExplorer;
 
 interface
+
+  // Undefine this when not needed!
+  {$DEFINE SAVE_DEBUG_REPORT}
+
 
 uses
   {Winapi}
@@ -25,7 +90,7 @@ uses
   WinApi.MediaFoundationApi.MfCaptureEngine,
   WinApi.MediaFoundationApi.MfMetLib,
   WinAPI.MediaFoundationApi.MfUtils,
-  {$IFDEF DEBUG}
+  {$IFDEF SAVE_DEBUG_REPORT}
   WinApi.MediaFoundationApi.MfMediaTypeDebug,
   {$ENDIF}
   {Application}
@@ -47,23 +112,20 @@ type
                                                 // Extended array of TDeviceProperties.
 
     FVideoFormatInfo: TVideoFormatInfo;         // Current video format.
-    iDevices: Integer;              // Number of elements in the array.
-    iSelection: Integer;            // Selected device, by array index.
-    iVideoFormatIndex: Integer ;     // Selected video format.
-    lpSelectedDeviceName: LPWSTR;   // Selected device name.
-    lpSelectedSymbolicLink: LPWSTR; // Selected device symbolic link.
-    gSelectedDeviceGuid: TGuid;     // Guid of the selected device.
-    dwSupportedFormats: DWord;
-    dwNativeFormats: DWord;
-    bIsSelected: Boolean;           // Did user select a device?
+    iDevices: Integer;                          // Number of elements in the array.
+    iSelection: Integer;                        // Selected device, by array index.
+    iVideoFormatIndex: Integer ;                // Selected video format.
+    lpSelectedDeviceName: LPWSTR;               // Selected device name.
+    lpSelectedSymbolicLink: LPWSTR;             // Selected device symbolic link.
+    gSelectedDeviceGuid: TGuid;                 // Guid of the selected device.
+    dwSupportedFormats: DWord;                  // Number of supported input formats.
+    dwNativeFormats: DWord;                     // Number of all native formats found on a device.
+    bIsSelected: Boolean;                       // Did user select a device?
 
-    //FMediaSource: IMFMediaSource;
-    FMediaType: IMFMediaType;      // Selected mediatype.
-    FActivate: IMFActivate;        // Selected Activation interface
+    FMediaType: IMFMediaType;                   // Selected mediatype.
+    FActivate: IMFActivate;                     // Selected Activation interface
 
-    FCritSec: TMFCritSec;
-
-    {$IFDEF DEBUG}
+    {$IFDEF SAVE_DEBUG_REPORT}
       FMediaTypeDebug: TMediaTypeDebug;
     {$ENDIF}
 
@@ -74,14 +136,16 @@ type
 
   public
 
-    constructor Create(out pResult: HResult);  //reintroduce;
+    constructor Create(out pResult: HResult);
     destructor Destroy(); override;
 
     /// Steps to manage this class
     ///  1 - Call Create, this initializes the class.
     ///  2 - The application should pick te device and videoformat.
-    ///  3 - Call ActivateDevice. Activates the selected device and selected video format.
-    ///
+    ///  3 - Set DeviceParam properties (SetCurrentDeviceProperties). This will activate the selected device and selected video format.
+    ///  4 - Call GetActivationObjects to get the activate object.
+    ///  5 - Call FCaptureManager.InitializeCaptureManager to activate the capture manager.
+    ///  6 - Call FCaptureManager.StartPreview to start previewing.
     ///  On a device lost, call GetCaptureDeviceCaps first and the application should select another device.
     ///  after this call ActivateDevice again.
 
@@ -93,7 +157,7 @@ type
 
     // Gets the activate interfaces from all capturedevices found on this system.
     function GetActivationObjects(out ppActivate: PIMFActivate;
-                                  out pCount: Integer): HResult;
+                                  out pCount: UINT32): HResult;
 
     property DevicesCount: Integer read iDevices;
     property DeviceIndex: Integer read iSelection;
@@ -125,9 +189,8 @@ var
 
 begin
   inherited Create();
-  FCritSec := TMFCritSec.Create;
 
-  {$IFDEF DEBUG}
+  {$IFDEF SAVE_DEBUG_REPORT}
   FMediaTypeDebug := TMediaTypeDebug.Create();
   {$ENDIF}
 
@@ -152,7 +215,7 @@ begin
     begin
       if (uiC = 0) then
         begin
-{$IFDEF DEBUG}
+{$IFDEF SAVE_DEBUG_REPORT}
           OutputDebugString(StrToPWideChar(format('No devices found. (%d)',
                                            [uiC])));
 {$ENDIF}
@@ -174,8 +237,7 @@ destructor TDeviceExplorer.Destroy();
 begin
   // Clear selected device record and arrays
   ResetCaptureDeviceCaps();
-  SafeDelete(FCritSec);
-  {$IFDEF DEBUG}
+  {$IFDEF SAVE_DEBUG_REPORT}
   FMediaTypeDebug.Free();
   {$ENDIF}
   inherited Destroy();
@@ -207,7 +269,6 @@ var
   i: Integer;
 
 begin
-  FCritSec.Lock;
 
   for i := 0 to Length(FDeviceProperties) -1 do
     FDeviceProperties[i].Reset;
@@ -223,9 +284,7 @@ begin
   bIsSelected := False;
   SafeRelease(FMediaType);
   SafeRelease(FActivate);
-  //SafeRelease(FMediaSource);
 
-  FCritSec.Unlock;
 end;
 
 //
@@ -236,14 +295,12 @@ var
   hr: HResult;
   pMediaSource: IMFMediaSource;
   mfActivate: PIMFActivate;
-  iCount: Integer;
+  uiCount: UINT32;
 
 label
   Done;
 
 begin
-
-  FCritSec.Lock;
 
   if (pDeviceIndex < FDeviceProperties[pDeviceIndex].iCount) then
     begin
@@ -258,7 +315,7 @@ begin
       dwNativeFormats := FDeviceProperties[pDeviceIndex].dwNativeFormats;
       dwSupportedFormats := FDeviceProperties[pDeviceIndex].dwSupportedFormats;
 
-      {$IFDEF DEBUG}
+      {$IFDEF SAVE_DEBUG_REPORT}
       FMediaTypeDebug.LogMediaType(DeviceProperties[pDeviceIndex].aVideoFormats[pFormatsIndex].mfMediaType);
       FMediaTypeDebug.SafeDebugResultsToFile('TDeviceExplorer.SetCurrentDeviceProperties');
       {$ENDIF}
@@ -267,7 +324,7 @@ begin
                           GUID_NULL,
                           FMediaType);
 
-      {$IFDEF DEBUG}
+      {$IFDEF SAVE_DEBUG_REPORT}
       FMediaTypeDebug.LogMediaType(FMediaType);
       FMediaTypeDebug.SafeDebugResultsToFile('TDeviceExplorer.SetCurrentDeviceProperties');
       {$ENDIF}
@@ -275,9 +332,17 @@ begin
 
 {$POINTERMATH ON}
       hr := GetActivationObjects(mfActivate,
-                                 iCount);
-      if (iCount > 0) and (pDeviceIndex > -1) then
-        FActivate := mfActivate[pDeviceIndex];
+                                 uiCount);
+      if FAILED(hr) then
+        goto done;
+
+      if (uiCount > 0) and (pDeviceIndex > -1) then
+        FActivate := mfActivate[pDeviceIndex]
+      else
+        begin
+          hr := ERROR_INVALID_PARAMETER;
+          goto done;
+        end;
 {$POINTERMATH OFF}
 
       // Set the videoformat that has been selected by user.
@@ -311,14 +376,12 @@ begin
     hr := ERROR_INVALID_PARAMETER;
 
 Done:
-  //SafeRelease(FMediaSource);
-  FCritSec.Unlock;
   Result := hr;
 end;
 
 
 function TDeviceExplorer.GetActivationObjects(out ppActivate: PIMFActivate;
-                                              out pCount: Integer): HResult;
+                                              out pCount: UINT32): HResult;
 var
   mfAttributes: IMFAttributes;
   hr: HResult;

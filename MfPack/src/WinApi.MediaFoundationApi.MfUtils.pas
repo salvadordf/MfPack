@@ -56,8 +56,12 @@
 // License for the specific language governing rights and limitations
 // under the License.
 //
-// Users may distribute this source code provided that this header is included
-// in full at the top of the file.
+//
+// Non commercial users may distribute this sourcecode provided that this
+// header is included in full at the top of the file.
+// Commercial users are not allowed to distribute this sourcecode as part of
+// their product without implicit permission.
+//
 //==============================================================================
 unit WinApi.MediaFoundationApi.MfUtils;
 
@@ -187,7 +191,11 @@ type
   // Time formatting
   // Converts 100-Nano second units (Hns unit) to time string format.
   function HnsTimeToStr(hns: MFTIME;
-                        ShowMilliSeconds: Boolean = True): string; inline;
+                        ShowMilliSeconds: Boolean = True;
+                        DelimiterFormat: string = ':'): string; overload; inline;
+
+  function HnsTimeToStr(hns: MFTIME;
+                        ShowMilliSeconds: Boolean = True): string; overload; inline;
 
   // Converts Milliseconds to a time string format
   function MSecToStr(wMsec: Int64;
@@ -925,7 +933,8 @@ end;
 
 // Converts Hns to a time string format
 function HnsTimeToStr(hns: MFTIME;
-                      ShowMilliSeconds: boolean = True): String; inline;
+                      ShowMilliSeconds: Boolean = True;
+                      DelimiterFormat: string = ':'): string; inline;
 var
   hours,
   mins,
@@ -933,6 +942,8 @@ var
   millisec: Word;
 
 begin
+
+
 try
   hours := hns div MFTIME(36000000000);
   hns := hns mod MFTIME(36000000000);
@@ -944,6 +955,43 @@ try
   hns := hns mod 10000000;
 
   millisec := hns div 10000;
+
+
+  if ShowMilliSeconds then
+    Result := Format('%2.2d%s%2.2d%s%2.2d,%3.3d', [hours, DelimiterFormat, mins, DelimiterFormat, secs, DelimiterFormat, millisec])
+  else
+    Result := Format('%2.2d%s%2.2d%s%2.2d', [hours, DelimiterFormat, mins, DelimiterFormat, secs]);
+
+except
+  on exception do Result:= '00:00:00,000';
+end;
+end;
+
+
+
+function HnsTimeToStr(hns: MFTIME;
+                      ShowMilliSeconds: Boolean = True): string; inline;
+var
+  hours,
+  mins,
+  secs,
+  millisec: Word;
+
+begin
+
+
+try
+  hours := hns div MFTIME(36000000000);
+  hns := hns mod MFTIME(36000000000);
+
+  mins := hns div 600000000;
+  hns := hns mod 600000000;
+
+  secs := hns div 10000000;
+  hns := hns mod 10000000;
+
+  millisec := hns div 10000;
+
 
   if ShowMilliSeconds then
     Result := Format('%2.2d:%2.2d:%2.2d,%3.3d', [hours, mins, secs, millisec])

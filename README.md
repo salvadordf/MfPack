@@ -143,4 +143,11 @@ SDK version: 10.0.22621.0 (Windows 11)
 
 ![](https://github.com/FactoryXCode/MfPack/blob/Master/MfPack/Pic/CameraFrameCaptureSample.png)
 
-**© FactoryX. All rights reserved.***
+**CaptureEngineVideoCapture sample**
+*Demonstrates how to capture a snapshot or a recording (A-synchronous) from a capture device,*
+*such as a webcam using the IMFCaptureEngine and IMFCapturePreviewSink.*
+*This sample also demonstrates how to use the MfMediaTypeDebug API*
+
+![](https://github.com/FactoryXCode/MfPack/blob/Master/MfPack/Pic/MFCaptureEngineVideoCapture.jpg)
+
+**© FactoryX. All rights reserved.**
