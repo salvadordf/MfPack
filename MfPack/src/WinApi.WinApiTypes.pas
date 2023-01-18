@@ -23,6 +23,8 @@
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
 // 28/08/2022 All                 PiL release  SDK 10.0.22621.0 (Windows 11)
+// 21/12/2022 Tony                Added correction for NativeInt on Delphi <= 2007
+// 05/01/2023 Tony                Corrected HNSTIME to TLargeInteger.
 //------------------------------------------------------------------------------
 //
 // Remarks: Requires Windows Vista or later.
@@ -55,8 +57,12 @@
 // License for the specific language governing rights and limitations
 // under the License.
 //
-// Users may distribute this source code provided that this header is included
-// in full at the top of the file.
+// Explanatory memorandum:
+// Non commercial users may distribute this sourcecode provided that this
+// header is included in full at the top of the file.
+// Commercial users are not allowed to distribute this sourcecode as part of
+// their product.
+//
 //==============================================================================
 unit WinApi.WinApiTypes;
 
@@ -164,6 +170,14 @@ type
    {$ELSE}
      PDWORD = ^DWORD;
    {$ENDIF}
+{$ENDIF}
+
+
+{$IFDEF MFP_NATIVEINT}
+{$IF SizeOf(Pointer) = 4}
+type
+  NativeInt = Integer;   // Correction for NativeInt on Delphi <= 2007 (8 bytes to 4 bytes).
+{$IFEND}
 {$ENDIF}
 
 
@@ -335,7 +349,7 @@ type
 {$IFDEF MFP_LONGLONG}
   PULONGLONG = ^ULONGLONG;
   PLONGLONG = ^LONGLONG;
-  LONGLONG = Int64;
+  LONGLONG = UInt64;
   {$IF COMPILERVERSION >= 11.0}
     {$IFDEF WIN64}
       ULONGLONG = UInt64;
@@ -2476,9 +2490,9 @@ type
 
 {$IFDEF MFP_HNSTIME}
   PHnstime = ^HNSTIME;
-  HNSTIME = LONGLONG;
+  HNSTIME = TLargeInteger {LONGLONG = Int64};
   {$EXTERNALSYM HNSTIME}
-  THnstime = LONGLONG;
+  THnstime = HNSTIME;
 {$ENDIF}
 
 
@@ -2570,7 +2584,7 @@ type
 
 {$IFDEF MFP_REFERENCE_TIME}
   PREFERENCE_TIME = ^REFERENCE_TIME;
-  REFERENCE_TIME = LONGLONG;
+  REFERENCE_TIME = LONGLONG; // UINT64
   {$EXTERNALSYM REFERENCE_TIME}
   PReferenceTime = ^ReferenceTime;
   ReferenceTime = REFERENCE_TIME;
