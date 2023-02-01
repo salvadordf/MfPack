@@ -10,7 +10,7 @@
 // Release date: 29-07-2012
 // Language: ENU
 //
-// Revision Version: 3.1.3
+// Revision Version: 3.1.4
 // Description: Common methods used by Media Foundation,
 //              Core Audio etc..
 //
@@ -30,7 +30,7 @@
 // Remarks: Requires Windows Vista or later.
 //
 // Related objects: -
-// Related projects: MfPackX313
+// Related projects: MfPackX314
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -46,18 +46,16 @@
 //
 // LICENSE
 //
-//  The contents of this file are subject to the
-//  GNU General Public License v3.0 (the "License");
-//  you may not use this file except in
-//  compliance with the License. You may obtain a copy of the License at
-//  https://www.gnu.org/licenses/gpl-3.0.html
+// The contents of this file are subject to the Mozilla Public License
+// Version 2.0 (the "License"); you may not use this file except in
+// compliance with the License. You may obtain a copy of the License at
+// https://www.mozilla.org/en-US/MPL/2.0/
 //
 // Software distributed under the License is distributed on an "AS IS"
 // basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
 // License for the specific language governing rights and limitations
 // under the License.
 //
-// Explanatory memorandum:
 // Non commercial users may distribute this sourcecode provided that this
 // header is included in full at the top of the file.
 // Commercial users are not allowed to distribute this sourcecode as part of
@@ -192,8 +190,8 @@ type
   // Time formatting
   // Converts 100-Nano second units (Hns unit) to time string format.
   function HnsTimeToStr(hns: MFTIME;
-                        ShowMilliSeconds: Boolean = True;
-                        DelimiterFormat: string = ':'): string; overload; inline;
+                        DelimiterFormat: string;
+                        ShowMilliSeconds: Boolean = True): string; overload; inline;
 
   function HnsTimeToStr(hns: MFTIME;
                         ShowMilliSeconds: Boolean = True): string; overload; inline;
@@ -957,8 +955,8 @@ end;
 
 // Converts Hns to a time string format
 function HnsTimeToStr(hns: MFTIME;
-                      ShowMilliSeconds: Boolean = True;
-                      DelimiterFormat: string = ':'): string; inline;
+                      DelimiterFormat: string;
+                      ShowMilliSeconds: Boolean = True): string; inline;
 var
   hours,
   mins,
@@ -966,7 +964,6 @@ var
   millisec: Word;
 
 begin
-
 
 try
   hours := hns div MFTIME(36000000000);
@@ -980,6 +977,8 @@ try
 
   millisec := hns div 10000;
 
+  if DelimiterFormat = '' then
+    DelimiterFormat := ':';
 
   if ShowMilliSeconds then
     Result := Format('%2.2d%s%2.2d%s%2.2d,%3.3d', [hours, DelimiterFormat, mins, DelimiterFormat, secs, DelimiterFormat, millisec])

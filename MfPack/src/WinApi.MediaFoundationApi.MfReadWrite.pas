@@ -10,7 +10,7 @@
 // Release date: 27-06-2012
 // Language: ENU
 //
-// Revision Version: 3.1.3
+// Revision Version: 3.1.4
 // Description: -
 //
 // Organisation: FactoryX
@@ -30,7 +30,7 @@
 //                   IUnknown(Pointer), IUnknown(Object), IUnknown(Nil) etc.
 //
 // Related objects: -
-// Related projects: MfPackX313
+// Related projects: MfPackX314
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -45,19 +45,17 @@
 //==============================================================================
 //
 // LICENSE
-// 
-//  The contents of this file are subject to the
-//  GNU General Public License v3.0 (the "License");
-//  you may not use this file except in
-//  compliance with the License. You may obtain a copy of the License at
-//  https://www.gnu.org/licenses/gpl-3.0.html
+//
+// The contents of this file are subject to the Mozilla Public License
+// Version 2.0 (the "License"); you may not use this file except in
+// compliance with the License. You may obtain a copy of the License at
+// https://www.mozilla.org/en-US/MPL/2.0/
 //
 // Software distributed under the License is distributed on an "AS IS"
 // basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
 // License for the specific language governing rights and limitations
 // under the License.
 //
-// Explanatory memorandum:
 // Non commercial users may distribute this sourcecode provided that this
 // header is included in full at the top of the file.
 // Commercial users are not allowed to distribute this sourcecode as part of
@@ -361,11 +359,11 @@ type
                                 const varPosition: PROPVARIANT): HResult; stdcall;
 
     function ReadSample(dwStreamIndex: DWORD;   // The stream to pull data from.
-                        dwControlFlags: DWORD;  // A bitwise OR of zero or more flags from the MF_SOURCE_READER_CONTROL_FLAG enumeration.
-         {out optional} pdwActualStreamIndex: PDWORD = Nil;  // Receives the zero-based index of the stream.
-         {out optional} pdwStreamFlags: PDWORD = Nil;        // Receives a bitwise OR of zero or more flags from the MF_SOURCE_READER_FLAG enumeration.
-         {out optional} pllTimestamp: PLONGLONG = Nil;       // Receives the time stamp of the sample, or the time of the stream event indicated in pdwStreamFlags. The time is given in 100-nanosecond units.
-         {out optional} ppSample: PIMFSample = Nil): HResult; stdcall;
+                        dwControlFlags: MF_SOURCE_READER_CONTROL_FLAG;  // A bitwise OR of zero or more flags from the MF_SOURCE_READER_CONTROL_FLAG enumeration.
+         {out optional} pdwActualStreamIndex: PDWORD = nil;  // Receives the zero-based index of the stream.
+         {out optional} pdwStreamFlags: PDWORD = nil;        // Receives a bitwise OR of zero or more flags from the MF_SOURCE_READER_FLAG enumeration.
+         {out optional} pllTimestamp: PLONGLONG = nil;       // Receives the time stamp of the sample, or the time of the stream event indicated in pdwStreamFlags. The time is given in 100-nanosecond units.
+         {out optional} ppSample: IMFSample = nil): HResult; stdcall;
 
     // function ReadSample: Remarks
     // ============================
@@ -469,7 +467,7 @@ type
     function OnReadSample(hrStatus: HRESULT;     // Specifies the error code if an error occurred while processing the sample request.
                           dwStreamIndex: DWORD;  // Specifies the stream index for the sample.
                           dwStreamFlags: DWORD;  // Specifies the accumulated flags for the stream.
-                          llTimestamp: LONGLONG; // Contains the presentation time of the sample.
+                          llTimestamp: HNSTIME;  // Contains the presentation time of the sample.
                                                  // If MF_SOURCE_READERF_STREAM_TICK is set for the stream flags,
                                                  // then this contains the timestamp for the stream tick.
                           pSample: IMFSample): HResult; stdcall; // Contains the next sample for the stream. It is possible for

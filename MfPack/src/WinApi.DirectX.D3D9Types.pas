@@ -10,7 +10,7 @@
 // Release date: 14-01-2018
 // Language: ENU
 //
-// Revision Version: 3.1.3
+// Revision Version: 3.1.4
 // Description: Direct3D include file.
 //
 // Organisation: FactoryX
@@ -28,7 +28,7 @@
 //          New apps should use the latest Direct3D API
 //
 // Related objects: -
-// Related projects: MfPackX313
+// Related projects: MfPackX314
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -43,21 +43,22 @@
 //==============================================================================
 //
 // LICENSE
-// 
-//  The contents of this file are subject to the
-//  GNU General Public License v3.0 (the "License");
-//  you may not use this file except in
-//  compliance with the License. You may obtain a copy of the License at
-//  https://www.gnu.org/licenses/gpl-3.0.html
+//
+// The contents of this file are subject to the Mozilla Public License
+// Version 2.0 (the "License"); you may not use this file except in
+// compliance with the License. You may obtain a copy of the License at
+// https://www.mozilla.org/en-US/MPL/2.0/
 //
 // Software distributed under the License is distributed on an "AS IS"
 // basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
 // License for the specific language governing rights and limitations
 // under the License.
-// 
-// Users may distribute this source code provided that this header is included
-// in full at the top of the file.
-// 
+//
+// Non commercial users may distribute this sourcecode provided that this
+// header is included in full at the top of the file.
+// Commercial users are not allowed to distribute this sourcecode as part of
+// their product.
+//
 //==============================================================================
 unit WinApi.DirectX.D3D9Types;
 
@@ -98,19 +99,19 @@ type
 
   // maps unsigned 8 bits/channel to D3DCOLOR
   // values must be in the range 0 through 255!
-  function D3DCOLOR_ARGB(a: Int32; r: Int32; g: Int32; b: Int32): D3DCOLOR;
+  function D3DCOLOR_ARGB(a: Int32; r: Int32; g: Int32; b: Int32): D3DCOLOR; inline;
 
-  function D3DCOLOR_RGBA(r: Int32; g: Int32; b: Int32; a: Int32): D3DCOLOR;
+  function D3DCOLOR_RGBA(r: Int32; g: Int32; b: Int32; a: Int32): D3DCOLOR; inline;
 
-  function D3DCOLOR_XRGB(r: Int32; g: Int32; b: Int32): D3DCOLOR;
+  function D3DCOLOR_XRGB(r: Int32; g: Int32; b: Int32): D3DCOLOR; inline;
 
-  function D3DCOLOR_XYUV(y: Int32; u: Int32; v: Int32): D3DCOLOR;
+  function D3DCOLOR_XYUV(y: Int32; u: Int32; v: Int32): D3DCOLOR; inline;
 
-  function D3DCOLOR_AYUV(a: Int32; y: Int32; u: Int32; v: Int32): D3DCOLOR;
+  function D3DCOLOR_AYUV(a: Int32; y: Int32; u: Int32; v: Int32): D3DCOLOR; inline;
 
 
   // maps floating point channels (0.0 to 1.0 range) to D3DCOLOR
-  function D3DCOLOR_COLORVALUE(r: Single; g: Single; b: Single; a: Single): D3DCOLOR;
+  function D3DCOLOR_COLORVALUE(r: Single; g: Single; b: Single; a: Single): D3DCOLOR; inline;
   {$EXTERNALSYM D3DCOLOR_COLORVALUE}
 
 type
@@ -2022,15 +2023,15 @@ const
 
 
   // pixel shader version token
-  function D3DPS_VERSION(_Major: DWORD; _Minor: DWORD): DWORD;
+  function D3DPS_VERSION(_Major: DWORD; _Minor: DWORD): DWORD; inline;
   {$EXTERNALSYM D3DPS_VERSION}
   // vertex shader version token
-  function D3DVS_VERSION(_Major: DWORD; _Minor: DWORD): DWORD;
+  function D3DVS_VERSION(_Major: DWORD; _Minor: DWORD): DWORD; inline;
   {$EXTERNALSYM D3DVS_VERSION}
   // extract major/minor from version cap
-  function D3DSHADER_VERSION_MAJOR(_Version: DWORD): DWORD;
+  function D3DSHADER_VERSION_MAJOR(_Version: DWORD): DWORD; inline;
   {$EXTERNALSYM D3DSHADER_VERSION_MAJOR}
-  function D3DSHADER_VERSION_MINOR(_Version: DWORD): DWORD;
+  function D3DSHADER_VERSION_MINOR(_Version: DWORD): DWORD; inline;
   {$EXTERNALSYM D3DSHADER_VERSION_MINOR}
 
 const
@@ -2042,7 +2043,7 @@ const
   {$EXTERNALSYM D3DSI_COMMENTSIZE_MASK}
 
 
-  function D3DSHADER_COMMENT(_DWordSize: DWORD): DWORD;
+  function D3DSHADER_COMMENT(_DWordSize: DWORD): DWORD; inline;
   {$EXTERNALSYM D3DSHADER_COMMENT}
 
 const
@@ -2865,11 +2866,16 @@ type
     Description: array[0..MAX_DEVICE_IDENTIFIER_STRING - 1] of AnsiChar;
     DeviceName: array[0..31] of AnsiChar;  { Device name for GDI (ex. \\.\DISPLAY1) }
     //#ifdef _WIN32
+    {$IFDEF WIN32}
     DriverVersion: LARGE_INTEGER;          { Defined for 32 bit components }
+    {$ELSE IFDEF WIN64}
+    DriverVersion: LARGE_INTEGER;          { Defined for 64 bit components }
     //#else
+    {$ELSE}
     DriverVersionLowPart: DWORD;           { Defined for 16 bit driver components }
     DriverVersionHighPart: DWORD;
     //#endif
+    {$ENDIF}
     VendorId: DWORD;
     DeviceId: DWORD;
     SubSysId: DWORD;
@@ -3822,151 +3828,173 @@ type
 
 implementation
 
-  function _D3DAUTHENTICATEDCHANNEL_PROTECTION_FLAGS.ReadBits(const iIndex: Integer): Integer;
-  var
-    Offset: Integer;
-    NrBits: Integer;
-    Mask: Integer;
 
-  begin
-    NrBits:= iIndex and $FF;
-    Offset:= iIndex shr 8;
-    Mask:= ((1 shl NrBits) - 1);
-    Result:= (Value shr Offset) and Mask;
-  end;
+function _D3DAUTHENTICATEDCHANNEL_PROTECTION_FLAGS.ReadBits(const iIndex: Integer): Integer;
+var
+  Offset: Integer;
+  NrBits: Integer;
+  Mask: Integer;
 
-  procedure _D3DAUTHENTICATEDCHANNEL_PROTECTION_FLAGS.WriteBits(const iIndex: Integer; const iValue: Integer);
-  var
-    Offset: Integer;
-    NrBits: Integer;
-    Mask: Integer;
-
-  begin
-    NrBits:= iIndex and $FF;
-    Offset:= iIndex shr 8;
-    Mask:= ((1 shl NrBits) - 1);
-    Assert(iValue <= Mask);
-    Value:= (Value and (not (UINT(Mask) shl UINT(Offset)))) or (UINT(iValue) shl UINT(Offset));
-  end;
+begin
+  NrBits := iIndex and $FF;
+  Offset := iIndex shr 8;
+  Mask := ((1 shl NrBits) - 1);
+  Result := (Value shr Offset) and Mask;
+end;
 
 
+procedure _D3DAUTHENTICATEDCHANNEL_PROTECTION_FLAGS.WriteBits(const iIndex: Integer;
+                                                              const iValue: Integer);
+var
+  Offset: Integer;
+  NrBits: Integer;
+  Mask: Integer;
 
-  function D3DCOLOR_ARGB(a: Int32; r: Int32;
-                         g: Int32; b: Int32): D3DCOLOR;
-    begin
-      Result:= ((a AND $FF) shl 24) OR ((r AND $FF) shl 16) OR ((g AND $FF) shl 8) OR (b AND $FF);
-    end;
-
-
-  function D3DCOLOR_RGBA(r: Int32; g: Int32;
-                         b: Int32; a: Int32): D3DCOLOR;
-  begin
-    Result:= D3DCOLOR_ARGB (a, r, g, b);
-  end;
-
-
-  function D3DCOLOR_XRGB(r: Int32; g: Int32;
-                         b: Int32): D3DCOLOR;
-  begin
-    Result:= D3DCOLOR_ARGB ($FF, r, g, b);
-  end;
+begin
+  NrBits := iIndex and $FF;
+  Offset := iIndex shr 8;
+  Mask := ((1 shl NrBits) - 1);
+  Assert(iValue <= Mask);
+  Value := (Value and (not (UINT(Mask) shl UINT(Offset)))) or (UINT(iValue) shl UINT(Offset));
+end;
 
 
-  function D3DCOLOR_XYUV(y: Int32; u: Int32;
-                         v: Int32): D3DCOLOR;
-  begin
-    Result:= D3DCOLOR_ARGB ($FF, y, u, v);
-  end;
+
+function D3DCOLOR_ARGB(a: Int32;
+                       r: Int32;
+                       g: Int32;
+                       b: Int32): D3DCOLOR; inline;
+begin
+  Result := ((a AND $FF) shl 24) OR ((r AND $FF) shl 16) OR ((g AND $FF) shl 8) OR (b AND $FF);
+end;
 
 
-  function D3DCOLOR_AYUV(a: Int32; y: Int32;
-                         u: Int32; v: Int32): D3DCOLOR;
-  begin
-    Result:= D3DCOLOR_ARGB(a, y, u, v);
-  end;
+function D3DCOLOR_RGBA(r: Int32;
+                       g: Int32;
+                       b: Int32;
+                       a: Int32): D3DCOLOR; inline;
+begin
+  Result := D3DCOLOR_ARGB (a, r, g, b);
+end;
 
 
-  function D3DCOLOR_COLORVALUE(r: Single; g: Single;
-                               b: Single; a: Single): D3DCOLOR;
-  begin
-    Result:= D3DCOLOR_RGBA(Trunc(r * 255), Trunc(g * 255),
-                           Trunc(b * 255), Trunc(a * 255));
-  end;
+function D3DCOLOR_XRGB(r: Int32;
+                       g: Int32;
+                       b: Int32): D3DCOLOR; inline;
+begin
+  Result := D3DCOLOR_ARGB ($FF,
+                           r,
+                           g,
+                           b);
+end;
 
 
-  function D3DTS_WORLDMATRIX(index: Int32): D3DTRANSFORMSTATETYPE;
-  begin
-    Result:= D3DTRANSFORMSTATETYPE(index + 256);
-  end;
-
-  function D3DPS_VERSION(_Major: DWORD;
-                         _Minor: DWORD): DWORD;
-  begin
-    Result:= $FFFF0000 OR (_Major shl 8) OR _Minor;
-  end;
-
-
-  function D3DVS_VERSION(_Major: DWORD;
-                         _Minor: DWORD): Cardinal;
-  begin
-    Result:= $FFFE0000 OR (_Major shl 8) OR _Minor;
-  end;
+function D3DCOLOR_XYUV(y: Int32;
+                       u: Int32;
+                       v: Int32): D3DCOLOR; inline;
+begin
+  Result := D3DCOLOR_ARGB ($FF,
+                           y,
+                           u,
+                           v);
+end;
 
 
-  function D3DSHADER_VERSION_MAJOR(_Version: DWORD): DWORD;
-  begin
-    Result:= (_Version shr 8) AND $FF;
-  end;
+function D3DCOLOR_AYUV(a: Int32;
+                       y: Int32;
+                       u: Int32;
+                       v: Int32): D3DCOLOR; inline;
+begin
+  Result := D3DCOLOR_ARGB(a, y, u, v);
+end;
 
 
-  function D3DSHADER_VERSION_MINOR(_Version: DWORD): DWORD;
-  begin
-    Result:= (_Version shr 0) AND $FF;
-  end;
+function D3DCOLOR_COLORVALUE(r: Single;
+                             g: Single;
+                             b: Single;
+                             a: Single): D3DCOLOR; inline;
+begin
+  Result := D3DCOLOR_RGBA(Trunc(r * 255),
+                          Trunc(g * 255),
+                          Trunc(b * 255),
+                          Trunc(a * 255));
+end;
 
 
-  function D3DSHADER_COMMENT(_DWordSize: DWORD): DWORD;
-  begin
-    Result:= ((_DWordSize shl D3DSI_COMMENTSIZE_SHIFT)
-               AND D3DSI_COMMENTSIZE_MASK)
-               OR DWORD(D3DSIO_COMMENT);
-  end;
+function D3DTS_WORLDMATRIX(index: Int32): D3DTRANSFORMSTATETYPE; inline;
+begin
+  Result:= D3DTRANSFORMSTATETYPE(index + 256);
+end;
 
 
-  function D3DFVF_TEXCOORDSIZE3(CoordIndex: DWord): DWord; inline;
-  begin
-    Result:= D3DFVF_TEXTUREFORMAT3 shl (CoordIndex * 2 + 16);
-  end;
+function D3DPS_VERSION(_Major: DWORD;
+                       _Minor: DWORD): DWORD; inline;
+begin
+  Result := $FFFF0000 OR (_Major shl 8) OR _Minor;
+end;
 
 
-  function D3DFVF_TEXCOORDSIZE2(CoordIndex: DWord): DWord; inline;
-  begin
-    Result:= D3DFVF_TEXTUREFORMAT2;
-  end;
+function D3DVS_VERSION(_Major: DWORD;
+                       _Minor: DWORD): Cardinal; inline;
+begin
+  Result := $FFFE0000 OR (_Major shl 8) OR _Minor;
+end;
 
 
-  function D3DFVF_TEXCOORDSIZE4(CoordIndex: DWord): DWord; inline;
-  begin
-    Result:= D3DFVF_TEXTUREFORMAT4 shl (CoordIndex * 2 + 16);
-  end;
+function D3DSHADER_VERSION_MAJOR(_Version: DWORD): DWORD; inline;
+begin
+  Result := (_Version shr 8) AND $FF;
+end;
 
 
-  function D3DFVF_TEXCOORDSIZE1(CoordIndex: DWord): DWord; inline;
-  begin
-    Result:= D3DFVF_TEXTUREFORMAT1 shl (CoordIndex * 2 + 16);
-  end;
+function D3DSHADER_VERSION_MINOR(_Version: DWORD): DWORD; inline;
+begin
+  Result := (_Version shr 0) AND $FF;
+end;
 
 
-  function MAKEFOURCC(ch0: AnsiChar;
+function D3DSHADER_COMMENT(_DWordSize: DWORD): DWORD;
+begin
+  Result := ((_DWordSize shl D3DSI_COMMENTSIZE_SHIFT)
+             AND D3DSI_COMMENTSIZE_MASK)
+             OR DWORD(D3DSIO_COMMENT);
+end;
+
+
+function D3DFVF_TEXCOORDSIZE3(CoordIndex: DWord): DWord; inline;
+begin
+  Result := D3DFVF_TEXTUREFORMAT3 shl (CoordIndex * 2 + 16);
+end;
+
+
+function D3DFVF_TEXCOORDSIZE2(CoordIndex: DWord): DWord; inline;
+begin
+  Result := D3DFVF_TEXTUREFORMAT2;
+end;
+
+
+function D3DFVF_TEXCOORDSIZE4(CoordIndex: DWord): DWord; inline;
+begin
+  Result := D3DFVF_TEXTUREFORMAT4 shl (CoordIndex * 2 + 16);
+end;
+
+
+function D3DFVF_TEXCOORDSIZE1(CoordIndex: DWord): DWord; inline;
+begin
+  Result := D3DFVF_TEXTUREFORMAT1 shl (CoordIndex * 2 + 16);
+end;
+
+
+function MAKEFOURCC(ch0: AnsiChar;
                       ch1: AnsiChar;
                       ch2: AnsiChar;
                       ch3: AnsiChar): DWORD; inline;
-  begin
-    Result:= DWORD(Ord(ch0)) OR
-             (DWORD(Ord(ch1)) shl 8) OR
-             (DWORD(Ord(ch2)) shl 16) OR
-             (DWORD(Ord(ch3)) shl 24 );
-  end;
+begin
+  Result := DWORD(Ord(ch0)) OR
+           (DWORD(Ord(ch1)) shl 8) OR
+           (DWORD(Ord(ch2)) shl 16) OR
+           (DWORD(Ord(ch3)) shl 24 );
+end;
 
   // Implement Additional functions here.
 

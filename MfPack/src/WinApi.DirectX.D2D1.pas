@@ -10,7 +10,7 @@
 // Release date: 30-04-2019
 // Language: ENU
 //
-// Revision Version: 3.1.3
+// Revision Version: 3.1.4
 //
 // Description: Direct2D: Hardware-accelerated, immediate-mode, 2-D graphics API that
 //              provides high performance and high-quality rendering for 2-D geometry,
@@ -30,7 +30,7 @@
 // Remarks: -
 //
 // Related objects: -
-// Related projects: MfPackX313
+// Related projects: MfPackX314
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -46,19 +46,21 @@
 //
 // LICENSE
 //
-//  The contents of this file are subject to the
-//  GNU General Public License v3.0 (the "License");
-//  you may not use this file except in
-//  compliance with the License. You may obtain a copy of the License at
-//  https://www.gnu.org/licenses/gpl-3.0.html
+// The contents of this file are subject to the Mozilla Public License
+// Version 2.0 (the "License"); you may not use this file except in
+// compliance with the License. You may obtain a copy of the License at
+// https://www.mozilla.org/en-US/MPL/2.0/
 //
 // Software distributed under the License is distributed on an "AS IS"
 // basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
 // License for the specific language governing rights and limitations
 // under the License.
 //
-// Users may distribute this source code provided that this header is included
-// in full at the top of the file.
+// Non commercial users may distribute this sourcecode provided that this
+// header is included in full at the top of the file.
+// Commercial users are not allowed to distribute this sourcecode as part of
+// their product.
+//
 //==============================================================================
 unit WinApi.DirectX.D2D1;
 
@@ -956,11 +958,11 @@ type
                      out dpiY: Single); stdcall;
 
     function CopyFromBitmap(var destPoint: D2D1_POINT_2U;
-                            const bitmap: ID2D1Bitmap;
+                            bitmap: ID2D1Bitmap;
                             var srcRect: D2D1_RECT_U): HResult; stdcall;
 
     function CopyFromRenderTarget(var destPoint: D2D1_POINT_2U;
-                                  const renderTarget: ID2D1RenderTarget;
+                                  renderTarget: ID2D1RenderTarget;
                                   var srcRect: D2D1_RECT_U): HResult; stdcall;
 
     function CopyFromMemory(var dstRect: D2D1_RECT_U;
@@ -1545,7 +1547,7 @@ type
                           out bitmap: ID2D1Bitmap): HResult; stdcall;
 
     // Create a D2D bitmap by copying a WIC bitmap.
-    function CreateBitmapFromWicBitmap(const wicBitmapSource: IWICBitmapSource;
+    function CreateBitmapFromWicBitmap(wicBitmapSource: IWICBitmapSource;
                                        bitmapProperties: PD2D1_BITMAP_PROPERTIES;
                                        out bitmap: ID2D1Bitmap): HResult; stdcall;
 
@@ -1560,7 +1562,7 @@ type
 
     // Creates a bitmap brush. The bitmap is scaled, rotated, skewed or tiled to fill
     // or pen a geometry.
-    function CreateBitmapBrush(const bitmap: ID2D1Bitmap;
+    function CreateBitmapBrush(bitmap: ID2D1Bitmap;
                                bitmapBrushProperties: PD2D1_BITMAP_BRUSH_PROPERTIES;
                                brushProperties: PD2D1_BRUSH_PROPERTIES;
                                out bitmapBrush: ID2D1BitmapBrush): HResult; stdcall;
@@ -1632,20 +1634,20 @@ type
 
     procedure DrawLine(point0: D2D1_POINT_2F;
                        point1: D2D1_POINT_2F;
-                       const brush: ID2D1Brush;
+                       brush: ID2D1Brush;
                        strokeWidth: Single = 1.0;
-                       const strokeStyle: ID2D1StrokeStyle = Nil); stdcall;
+                       strokeStyle: ID2D1StrokeStyle = Nil); stdcall;
 
     procedure DrawRectangle(const rect: D2D1_RECT_F;
-                            const brush: ID2D1Brush;
+                            brush: ID2D1Brush;
                             strokeWidth: Single = 1.0;
-                            const strokeStyle: ID2D1StrokeStyle = Nil); stdcall;
+                            strokeStyle: ID2D1StrokeStyle = Nil); stdcall;
 
     procedure FillRectangle(const rect: D2D1_RECT_F;
-                            const brush: ID2D1Brush); stdcall;
+                            brush: ID2D1Brush); stdcall;
 
     procedure DrawRoundedRectangle(const roundedRect: D2D1_ROUNDED_RECT;
-                                   const brush: ID2D1Brush;
+                                   brush: ID2D1Brush;
                                    const strokeWidth: Single = 1.0;
                                    const strokeStyle: ID2D1StrokeStyle = Nil); stdcall;
 
@@ -1653,30 +1655,30 @@ type
                                    const brush: ID2D1Brush); stdcall;
 
     procedure DrawEllipse(const ellipse: D2D1_ELLIPSE;
-                          const brush: ID2D1Brush;
+                          brush: ID2D1Brush;
                           const strokeWidth: Single = 1.0;
                           const strokeStyle: ID2D1StrokeStyle = Nil); stdcall;
 
     procedure FillEllipse(const ellipse: D2D1_ELLIPSE;
-                          const brush: ID2D1Brush);
+                          brush: ID2D1Brush);
 
     procedure DrawGeometry(const geometry: ID2D1Geometry;
-                           const brush: ID2D1Brush;
+                           brush: ID2D1Brush;
                            const strokeWidth: Single = 1.0;
-                           const strokeStyle: ID2D1StrokeStyle = Nil); stdcall;
+                           strokeStyle: ID2D1StrokeStyle = Nil); stdcall;
 
     // <param name="opacityBrush">An optionally specified opacity brush. Only the alpha
     // channel of the corresponding brush will be sampled and will be applied to the
     // entire fill of the geometry. If this brush is specified, the fill brush must be
     // a bitmap brush with an extend mode of D2D1_EXTEND_MODE_CLAMP.</param>
-    procedure FillGeometry(const geometry: ID2D1Geometry;
-                           const brush: ID2D1Brush;
+    procedure FillGeometry(geometry: ID2D1Geometry;
+                           brush: ID2D1Brush;
                            const opacityBrush: ID2D1Brush = Nil); stdcall;
 
     // Fill a mesh. Since meshes can only render aliased content, the render target
     // antialiasing mode must be set to aliased.
-    procedure FillMesh(const mesh: ID2D1Mesh;
-                       const brush: ID2D1Brush); stdcall;
+    procedure FillMesh(mesh: ID2D1Mesh;
+                       brush: ID2D1Brush); stdcall;
 
     // Fill using the alpha channel of the supplied opacity mask bitmap. The brush
     // opacity will be modulated by the mask. The render target antialiasing mode must
@@ -1687,7 +1689,7 @@ type
                               destinationRectangle: PD2D1_RECT_F = Nil;
                               sourceRectangle: PD2D1_RECT_F = Nil); stdcall;
 
-    procedure DrawBitmap(const bitmap: ID2D1Bitmap;
+    procedure DrawBitmap(bitmap: ID2D1Bitmap;
                          destinationRectangle: PD2D1_RECT_F = Nil;
                          opacity: Single = 1.0;
                          interpolationMode: D2D1_BITMAP_INTERPOLATION_MODE = D2D1_BITMAP_INTERPOLATION_MODE_LINEAR;
@@ -1697,7 +1699,7 @@ type
     // baseline snapping.
     procedure DrawText(_string: PWideChar;
                        const stringLength: UINT32;
-                       const textFormat: IDWriteTextFormat;
+                       textFormat: IDWriteTextFormat;
                        const layoutRect: D2D1_RECT_F;
                        defaultFillBrush: ID2D1Brush;
                        options: D2D1_DRAW_TEXT_OPTIONS = D2D1_DRAW_TEXT_OPTIONS_NONE;
@@ -1711,13 +1713,13 @@ type
     // the origin and the layout bounds of the corresponding IDWriteTextLayout object.
     // </param>
     procedure DrawTextLayout(origin: D2D1_POINT_2F;
-                             const textLayout: IDWriteTextLayout;
-                             const defaultFillBrush: ID2D1Brush;
+                             textLayout: IDWriteTextLayout;
+                             defaultFillBrush: ID2D1Brush;
                              options: D2D1_DRAW_TEXT_OPTIONS = D2D1_DRAW_TEXT_OPTIONS_NONE); stdcall;
 
     procedure DrawGlyphRun(baselineOrigin: D2D1_POINT_2F;
                            glyphRun: DWRITE_GLYPH_RUN;
-                           const foregroundBrush: ID2D1Brush;
+                           foregroundBrush: ID2D1Brush;
                            measuringMode: DWRITE_MEASURING_MODE = DWRITE_MEASURING_MODE_NATURAL); stdcall;
 
     procedure SetTransform(const transform: D2D1_MATRIX_3X2_F); stdcall;
@@ -1732,7 +1734,7 @@ type
 
     function GetTextAntialiasMode(): D2D1_TEXT_ANTIALIAS_MODE; stdcall;
 
-    procedure SetTextRenderingParams(const textRenderingParams: IDWriteRenderingParams = Nil); stdcall;
+    procedure SetTextRenderingParams(textRenderingParams: IDWriteRenderingParams = Nil); stdcall;
 
     // Retrieve the text render parameters. NOTE: If Nil is specified to
     // SetTextRenderingParameters, Nil will be returned.
@@ -1968,7 +1970,7 @@ type
 
     // Creates a render target that draws to a DXGI Surface. The device that owns the
     // surface is used for rendering.
-    function CreateDxgiSurfaceRenderTarget(const dxgiSurface: IDXGISurface;
+    function CreateDxgiSurfaceRenderTarget(dxgiSurface: IDXGISurface;
                                            var renderTargetProperties: D2D1_RENDER_TARGET_PROPERTIES;
                                            out renderTarget: ID2D1RenderTarget): HResult; stdcall;
 

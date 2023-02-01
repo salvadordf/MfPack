@@ -10,7 +10,7 @@
 // Release date: 29-06-2012
 // Language: ENU
 //
-// Revision Version: 3.1.3
+// Revision Version: 3.1.4
 // Description: -
 //
 // Organisation: FactoryX
@@ -35,7 +35,7 @@
 //         Fields with a Common Type Specification.
 //
 // Related objects: -
-// Related projects: MfPackX313
+// Related projects: MfPackX314
 // Known Issues: -
 //
 // Compiler version: 23 up to 33
@@ -51,18 +51,16 @@
 //
 // LICENSE
 //
-//  The contents of this file are subject to the
-//  GNU General Public License v3.0 (the "License");
-//  you may not use this file except in
-//  compliance with the License. You may obtain a copy of the License at
-//  https://www.gnu.org/licenses/gpl-3.0.html
+// The contents of this file are subject to the Mozilla Public License
+// Version 2.0 (the "License"); you may not use this file except in
+// compliance with the License. You may obtain a copy of the License at
+// https://www.mozilla.org/en-US/MPL/2.0/
 //
 // Software distributed under the License is distributed on an "AS IS"
 // basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See the
 // License for the specific language governing rights and limitations
 // under the License.
 //
-// Explanatory memorandum:
 // Non commercial users may distribute this sourcecode provided that this
 // header is included in full at the top of the file.
 // Commercial users are not allowed to distribute this sourcecode as part of
@@ -1226,9 +1224,9 @@ type
   IMFMediaBuffer = interface(IUnknown)
   ['{045FA593-8799-42b8-BC8D-8968C6453507}']
 
-    function Lock(out ppbBuffer: PByte;     // Receives a pointer to the start of the buffer.
-                  pcbMaxLength: PDWord;     // Receives the maximum amount of data that can be written to the buffer. This parameter can be Nil.
-                  pcbCurrentLength: PDWord  // Receives the length of the valid data in the buffer, in bytes. This parameter can be Nil.
+    function Lock(out ppbBuffer: PByte;           // Receives a pointer to the start of the buffer.
+                  {out} pcbMaxLength: PDWord;     // Receives the maximum amount of data that can be written to the buffer. This parameter can be nil.
+                  {out} pcbCurrentLength: PDWord  // Receives the length of the valid data in the buffer, in bytes. This parameter can be nil.
                   ): HResult; stdcall;
 
     function Unlock(): HResult; stdcall;
@@ -1278,7 +1276,7 @@ type
     function GetBufferCount(out pdwBufferCount: DWord): HResult; stdcall;
 
     function GetBufferByIndex(dwIndex: DWord;
-                              out ppBuffer: PIMFMediaBuffer): HResult; stdcall;
+                              out ppBuffer: IMFMediaBuffer): HResult; stdcall;
 
     function ConvertToContiguousBuffer(out ppBuffer: IMFMediaBuffer): HResult; stdcall;
 
@@ -1845,7 +1843,7 @@ type
     //     Will contain the requested interface
     // </param>
     function ActivateObject(const riid: REFIID;
-                            out ppv: LPVOID): HResult; stdcall;
+                            {out}const [ref] ppv): HResult; stdcall;
 
     // <summary>
     //     Shuts down the internal represented object
