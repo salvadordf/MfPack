@@ -9,7 +9,7 @@
 // Release date: 08-03-2018
 // Language: ENU
 //
-// Version: 3.1.3
+// Version: 3.1.4
 //
 // Description: Preview window.
 //
@@ -23,6 +23,7 @@
 // ---------- ------------------- ----------------------------------------------
 // 28/08/2022 All                 PiL release  SDK 10.0.22621.0 (Windows 11)
 // 29/01/2222 Tony                Changed OnDeviceChange for compatibility with Win 10/11
+// 07/02/2023 Tony                Fixed issues with OnReadSample and bufferlock.
 //------------------------------------------------------------------------------
 //
 // Remarks: Requires Windows 10 or higher.
@@ -205,6 +206,10 @@ end;
 //-------------------------------------------------------------------
 procedure TfrmMain.CleanUp();
 begin
+
+  if Assigned(g_pPreview) then
+    FreeAndNil(g_pPreview);
+
   // Release the selectdialog device
   if Assigned(dlgSelectDevice) then
     dlgSelectDevice.Close();
@@ -214,10 +219,6 @@ begin
       UnregisterDeviceNotification(g_hdevnotify);
       g_hdevnotify := nil;
     end;
-
-  if Assigned(g_pPreview) then
-    FreeAndNil(g_pPreview);
-
 end;
 
 

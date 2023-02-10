@@ -9,7 +9,7 @@
 // Release date: 08-03-2019
 // Language: ENU
 //
-// Version: 3.1.3
+// Version: 3.1.4
 //
 // Description: Manages the Direct3D device.
 //
@@ -22,6 +22,7 @@
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
 // 28/08/2022 All                 PiL release  SDK 10.0.22621.0 (Windows 11)
+// 07/02/2023 Tony                Fixed issues with OnReadSample and bufferlock.
 //------------------------------------------------------------------------------
 //
 // Remarks: Requires Windows 10 or higher.
@@ -663,14 +664,16 @@ begin
                           nil);
 
 done:
-
-  VideoBufferLock.Free; // MUST DO!!! Otherwise the buffer stays in locked state and
-  VideoBufferLock := nil;                             // OnReadSample will halt after approx 10 samples (because of an exhausted sample pool)
+  if Assigned(VideoBufferLock) then
+    begin
+      FreeAndNil(VideoBufferLock); // MUST DO!!! Otherwise the buffer stays in locked state and
+                                   // OnReadSample will halt after approx 10 samples (because of an exhausted sample pool)
+    end;
 
   pbScanline0 := nil;
-
   Result := hr;
 end;
+
 
 //-------------------------------------------------------------------
 //  IsFormatSupported
