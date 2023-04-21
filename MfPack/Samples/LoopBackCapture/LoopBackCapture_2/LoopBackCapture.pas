@@ -120,6 +120,8 @@ type
                SampleReady,
                FinishCapture);
 
+  TWavFormat = (fmt44100, fmt48000);
+
 type
 
   // Forwarded class
@@ -149,6 +151,7 @@ type
     m_dwQueueID: DWord;
     m_cbHeaderSize: DWord;
     m_cbDataSize: DWord;
+    m_WavFormat: TWavFormat;
 
     hwOwner: HWND;
 
@@ -175,6 +178,8 @@ type
     procedure Reset();
     procedure SetDeviceStateErrorIfFailed(hr: HResult);
 
+    procedure SetWavFormat(aFormat: TWavFormat);
+
   public
 
     constructor Create(hMF: HWND);
@@ -187,9 +192,12 @@ type
     function StartCaptureAsync(const hWindow: HWND;
                                const processId: DWord;
                                includeProcessTree: Boolean;
+                               const wavFormat: TWavFormat;
                                const outputFileName: LPCWSTR): HResult;
 
     function StopCaptureAsync(): HResult;
+
+    property WavFormat: TWavFormat read m_WavFormat write SetWavFormat;
 
   end;
 
@@ -291,8 +299,18 @@ begin
     begin
       m_CaptureFormat.wFormatTag := WAVE_FORMAT_PCM;
       m_CaptureFormat.nChannels := 2;
-      m_CaptureFormat.nSamplesPerSec := 44100;
-      m_CaptureFormat.wBitsPerSample := 16;
+
+      if (m_WavFormat = fmt44100) then
+        begin
+          m_CaptureFormat.nSamplesPerSec := 44100;
+          m_CaptureFormat.wBitsPerSample := 16;
+        end
+      else
+        begin
+          m_CaptureFormat.nSamplesPerSec := 48000;
+          m_CaptureFormat.wBitsPerSample := 24;
+        end;
+
       m_CaptureFormat.nBlockAlign := (m_CaptureFormat.nChannels * m_CaptureFormat.wBitsPerSample) div BITS_PER_BYTE;
       m_CaptureFormat.nAvgBytesPerSec := (m_CaptureFormat.nSamplesPerSec * m_CaptureFormat.nBlockAlign);
     end
@@ -396,11 +414,14 @@ var
   hr: HResult;
 
 begin
+  m_DeviceState := Stopping;
   // Stop capture by cancelling Work Item
   // Cancel the queued work item (if any)
-  if (0 <> m_SampleReadyKey) then
+  if (m_SampleReadyKey <> 0) then
     begin
-        MFCancelWorkItem(m_SampleReadyKey);
+        hr := MFCancelWorkItem(m_SampleReadyKey);
+        if FAILED(hr) then
+          ErrMsg(Format('MFCancelWorkItem failed. LastError = %d',[GetLastError()]), hr);
         m_SampleReadyKey := 0;
     end;
 
@@ -409,7 +430,18 @@ begin
   SafeRelease(m_SampleReadyAsyncResult);
 
   if SUCCEEDED(hr) then
-    hr := FinishCaptureAsync();
+    begin
+      hr := FinishCaptureAsync();
+      if SUCCEEDED(hr) then
+        m_DeviceState := Stopped
+      else
+        begin
+          m_DeviceState := Error;
+          if FAILED(hr) then
+            ErrMsg(Format('FinishCaptureAsync failed. LastError = %d',[GetLastError()]), hr);
+        end;
+    end;
+
   Result := hr;
 end;
 
@@ -425,29 +457,31 @@ var
   hr: HResult;
 
 begin
+  m_DeviceState := Stopping;
   // FixWAVHeader will set the DeviceStateStopped when all async tasks are complete
   hr := FixWAVHeader();
 
   if SUCCEEDED(hr) then
     begin
-      m_DeviceState := Stopped;
       gs_hCaptureStopped.SetEvent();
       hr := EventWait(gs_hCaptureStopped);
-
       if SUCCEEDED(hr) then
-        if (m_hPipe <> 0) then
-          begin
-            CloseHandle(m_hPipe);
-            m_hPipe := 0;
-            SendMessage(hwOwner,
-                        WM_RECORDINGSTOPPEDNOTYFY,
-                        0,
-                        0);
-          end;
+        begin
+          m_DeviceState := Stopped;
+          if (m_hPipe <> 0) then
+            begin
+              CloseHandle(m_hPipe);
+              m_hPipe := 0;
+              SendMessage(hwOwner,
+                          WM_RECORDINGSTOPPEDNOTYFY,
+                          0,
+                          0);
+            end;
+        end;
     end
   else // nothing to play :-(
     begin
-      m_DeviceState := Stopped;
+      m_DeviceState := Error;
       gs_hCaptureStopped.SetEvent();
       hr := EventWait(gs_hCaptureStopped);
     end;
@@ -498,7 +532,11 @@ begin
   Reset();
 
   // Create events for sample ready or user stop
-  gs_SampleReadyEvent := TEvent.Create(nil, False, False, '', True);
+  gs_SampleReadyEvent := TEvent.Create(nil,
+                                       False,
+                                       False,
+                                       '',
+                                       True);
 
   // Register MMCSS work queue
   hr := MFLockSharedWorkQueue(PWideChar('Capture'),
@@ -512,9 +550,18 @@ begin
   m_xSampleReady.SetQueueID(m_dwQueueID);
 
   // Create the completion event as auto-reset
-  gs_hActivateCompleted := TEvent.Create(nil, False, False, '', True);
+  gs_hActivateCompleted := TEvent.Create(nil,
+                                         False,
+                                         False,
+                                         '',
+                                         True);
+
   // Create the capture-stopped event as auto-reset
-  gs_hCaptureStopped := TEvent.Create(nil, False, False, '', True);
+  gs_hCaptureStopped := TEvent.Create(nil,
+                                      False,
+                                      False,
+                                      '',
+                                      True);
 
 leave:
 
@@ -644,7 +691,7 @@ label
 begin
   // Write the size of the 'data' chunk first
   dwPtr := SetFilePointer(m_hPipe,
-                          m_cbHeaderSize - sizeof(DWord),
+                          m_cbHeaderSize - SizeOf(DWord),
                           nil,
                           FILE_BEGIN);
   if (dwPtr = INVALID_SET_FILE_POINTER) then
@@ -706,7 +753,7 @@ var
   hr: HResult;
   br: BOOL;
   FramesAvailable: UINT32;
-  Data: Pointer; //PByte;
+  Data: Pointer;
   dwCaptureFlags: DWord;
   u64DevicePosition: UINT64;
   u64QPCPosition: UINT64;
@@ -725,7 +772,7 @@ begin
 
   // If this flag is set, we have already queued up the async call to finialize the WAV header
   // So we don't want to grab or write any more data that would possibly give us an invalid size
-  if (m_DeviceState = Stopping) then
+  if (m_DeviceState = Stopping) or (m_DeviceState = Stopped) or (m_DeviceState = Error) then
     goto leave;
 
   // A word on why we have a loop here;
@@ -751,7 +798,7 @@ begin
 
   //while SUCCEEDED(m_AudioCaptureClient.GetNextPacketSize(FramesAvailable)) and (FramesAvailable > 0) do
 
-  while True do
+  while True and (m_DeviceState <> Stopping) or (m_DeviceState <> Stopped) or (m_DeviceState <> Error) do
     begin
       Data := nil;
       if not Assigned(m_AudioCaptureClient) then
@@ -788,7 +835,7 @@ begin
           end;
 
         // Write File
-        if (m_DeviceState <> Stopping) then
+        if (m_DeviceState <> Stopping) or (m_DeviceState <> Stopped) or (m_DeviceState <> Error) then
           begin
             dwBytesWritten := 0;
             br := WriteFile(m_hPipe,
@@ -798,7 +845,7 @@ begin
                             nil);
             if (br = False) then
               begin
-                ErrMsg(Format('%s LastError = %d',[SysErrorMessage(GetLastError), GetLastError()]), hr);
+                ErrMsg(Format('%s LastError = %d',[SysErrorMessage(GetLastError), GetLastError()]), E_FAIL);
                 break;
               end;
           end;
@@ -820,7 +867,6 @@ begin
 
 leave:
   LeaveCriticalSection(oCriticalSection);
-
   Result := hr;
 end;
 
@@ -856,7 +902,7 @@ begin
 
   hr := ActivateAudioInterfaceAsync(LPCWSTR(VIRTUAL_AUDIO_DEVICE_PROCESS_LOOPBACK),
                                     IID_IAudioClient,
-                                    @activateParams,
+                                    activateParams,
                                     Self,
                                     asyncOp);
   if FAILED(hr) then
@@ -892,6 +938,7 @@ begin
                        nil);
   if FAILED(hr) then
     begin
+      m_DeviceState := Error;
       ErrMsg(Format('MFPutWorkItem2 failed. LastError = %d',[GetLastError()]), hr);
     end;
 
@@ -908,6 +955,12 @@ begin
   hr := S_OK;
 
 try
+
+  m_activateResult := E_UNEXPECTED;
+  m_DeviceState := Uninitialized;
+  m_cbHeaderSize := 0;
+  m_cbDataSize := 0;
+
   if (m_dwQueueID <> 0) then
     MFUnlockWorkQueue(m_dwQueueID);
 
@@ -955,12 +1008,19 @@ begin
 end;
 
 
+procedure TLoopbackCapture.SetWavFormat(aFormat:  TWavFormat);
+begin
+  m_WavFormat := aFormat;
+end;
+
+
 
 // PUBLIC
 
 function TLoopbackCapture.StartCaptureAsync(const hWindow: HWND;
                                             const processId: DWord;
                                             includeProcessTree: Boolean;
+                                            const wavFormat: TWavFormat;
                                             const outputFileName: LPCWSTR): HResult;
 var
   hr: HResult;

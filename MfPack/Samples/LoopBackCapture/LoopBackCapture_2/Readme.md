@@ -19,9 +19,9 @@ audio endpoint.
 If the processes whose audio will be captured does not have any audio rendering streams, then the capturing 
 process receives silence.
 
-To use this sample, obtain the process ID for the process tree you wish to capture or exclude from capture.
-You can use Task Manager or the tlist program to get this ID. Run the sample with the process ID, the
-desired capture mode (including the process tree or excluding it), and the output WAV file.
+It also demonstrates how to get a processes by using the tlhelp32 API, to list a snapshot of running processes and be able to pick one.
+The application is provided with a dialog to select a running process from the process tree you want to pick and has
+a button to get the current PID of your application.
 
 Examples:
 
@@ -41,6 +41,6 @@ Project location: https://github.com/FactoryXCode/MfPack
                   https://sourceforge.net/projects/MFPack
 
 First release date: 02-04-2023
-Final release date: 02/04/2023
+Final release date: 20/04/2023
 
 Copyright © FactoryX. All rights reserved.
