@@ -94,7 +94,6 @@ uses
 type
   TfrmMain = class(TForm)
     sbMsg: TStatusBar;
-    cbxDontOverWrite: TCheckBox;
     edPID: TEdit;
     Label3: TLabel;
     rb2: TRadioButton;
@@ -115,6 +114,7 @@ type
     Label4: TLabel;
     rb44: TRadioButton;
     rb48: TRadioButton;
+    cbxDontOverWrite: TCheckBox;
     procedure FormCreate(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject;
                              var CanClose: Boolean);
@@ -128,6 +128,7 @@ type
     procedure Button1Click(Sender: TObject);
     procedure edPIDKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure cbxStayOnTopClick(Sender: TObject);
+    procedure edProcNameChange(Sender: TObject);
 
   private
     { Private declarations }
@@ -173,6 +174,12 @@ var
   hr: HResult;
 
 begin
+  // Set to default, if user selected nothing.
+  if (processId = 0) then
+    begin
+      butGetPIDClick(Self);
+      rb1.Checked := true;
+    end;
 
   hr := StartCapture();
 
@@ -263,6 +270,12 @@ begin
    processId := i;
 end;
 
+
+procedure TfrmMain.edProcNameChange(Sender: TObject);
+begin
+
+end;
+
 // Get the PID from this application
 procedure TfrmMain.butGetPIDClick(Sender: TObject);
 begin
@@ -281,8 +294,9 @@ end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
 begin
-  bEdited := False;
   oLoopbackCapture := TLoopbackCapture.Create(Handle);
+  butGetPID.OnClick(Self);
+  bEdited := False;
 end;
 
 

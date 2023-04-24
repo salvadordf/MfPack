@@ -769,6 +769,7 @@ begin
   EnterCriticalSection(oCriticalSection);
   hr := S_OK;
   NumBytesWritten := 0;
+  Data := nil;
 
   // If this flag is set, we have already queued up the async call to finialize the WAV header
   // So we don't want to grab or write any more data that would possibly give us an invalid size
@@ -798,9 +799,9 @@ begin
 
   //while SUCCEEDED(m_AudioCaptureClient.GetNextPacketSize(FramesAvailable)) and (FramesAvailable > 0) do
 
-  while True and (m_DeviceState <> Stopping) or (m_DeviceState <> Stopped) or (m_DeviceState <> Error) do
+  while {True and} (m_DeviceState <> Stopping) or (m_DeviceState <> Stopped) or (m_DeviceState <> Error) do
     begin
-      Data := nil;
+
       if not Assigned(m_AudioCaptureClient) then
         Break;
 
@@ -850,19 +851,20 @@ begin
               end;
           end;
 
-        // Release buffer back
-        hr := m_AudioCaptureClient.ReleaseBuffer(FramesAvailable);
-
         // Increase the size of our 'data' chunk. m_cbDataSize needs to be accurate.
         inc(m_cbDataSize, cbBytesToCapture);
         inc(NumBytesWritten, dwBytesWritten);
-
         HandleThreadMessages(GetCurrentThread);
         // Send score. Don't use PostMessage because it set priority above this thread.
         SendMessage(hwOwner,
                     WM_PROGRESSNOTIFY,
                     NumBytesWritten,
                     0);
+        Data := nil;
+
+        // Release buffer back
+        hr := m_AudioCaptureClient.ReleaseBuffer(FramesAvailable);
+        HandleThreadMessages(GetCurrentThread);
     end;
 
 leave:
