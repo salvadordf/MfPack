@@ -22,6 +22,7 @@
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
 // 02/04/2023 All                 PiL release  SDK 10.0.22621.0 (Windows 11)
+// 05/05/2023 Tony                Updated and fixed some isues.
 //------------------------------------------------------------------------------
 //
 // Remarks: Requires Windows 10 or later.
@@ -69,7 +70,6 @@ uses
   WinApi.ComBaseApi,
   Winapi.ShellAPI,
   {ActiveX}
-  //WinApi.ActiveX.ObjBase,
   WinApi.ActiveX,
   {System}
   System.SysUtils,
@@ -87,13 +87,14 @@ uses
   WinApi.MediaFoundationApi.MfApi,
   WinApi.MediaFoundationApi.MfUtils,
   WinApi.CoreAudioApi.MMDeviceApi,
+  WinApi.CoreAudioApi.AudioClient,
+  {Application}
   Common,
   LoopbackCapture,
   ProcessInfoDlg;
 
 type
   TfrmMain = class(TForm)
-    sbMsg: TStatusBar;
     edPID: TEdit;
     Label3: TLabel;
     rb2: TRadioButton;
@@ -107,14 +108,20 @@ type
     Panel1: TPanel;
     Label1: TLabel;
     lblFileExt: TLabel;
+    edFileName: TEdit;
+    cbxDontOverWrite: TCheckBox;
     butStart: TButton;
     butStop: TButton;
-    edFileName: TEdit;
     butPlayData: TButton;
+    lblMsg: TLabel;
+    Bevel1: TBevel;
+    Bevel3: TBevel;
+    Panel3: TPanel;
+    lblDevicePeriod: TLabel;
+    tbDevicePeriod: TTrackBar;
     Label4: TLabel;
     rb44: TRadioButton;
     rb48: TRadioButton;
-    cbxDontOverWrite: TCheckBox;
     procedure FormCreate(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject;
                              var CanClose: Boolean);
@@ -128,7 +135,7 @@ type
     procedure Button1Click(Sender: TObject);
     procedure edPIDKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure cbxStayOnTopClick(Sender: TObject);
-    procedure edProcNameChange(Sender: TObject);
+    procedure tbDevicePeriodChange(Sender: TObject);
 
   private
     { Private declarations }
@@ -138,8 +145,9 @@ type
     iProgress: Int64;
     bIncludeProcessTree: Boolean;
     oLoopbackCapture: TLoopbackCapture;
-    processId: Integer;
+    aprocessId: Integer;
     aWavFmt: TWavFormat;
+    oDevicePeriod: REFERENCE_TIME;
 
     procedure OnProgressEvent(var AMessage: TMessage); message WM_PROGRESSNOTIFY;
     procedure OnRecordingStopped(var AMessage: TMessage); message WM_RECORDINGSTOPPEDNOTYFY;
@@ -175,7 +183,7 @@ var
 
 begin
   // Set to default, if user selected nothing.
-  if (processId = 0) then
+  if (aprocessId = 0) then
     begin
       butGetPIDClick(Self);
       rb1.Checked := true;
@@ -222,8 +230,8 @@ begin
   // Ask the user to select one.
   if (dlgProcessInfo.ShowModal = mrOk) then
     begin
-      processId := dlgProcessInfo.SelectedPID;
-      edPID.Text := IntToStr(processId);
+      aprocessId := dlgProcessInfo.SelectedPID;
+      edPID.Text := IntToStr(aprocessId);
       edProcName.Text := dlgProcessInfo.SelectedProcName;
     end
   else
@@ -267,14 +275,9 @@ var
   i: Integer;
 begin
   if TryStrToInt(edPID.Text, i) and (i >= 0) then
-   processId := i;
+   aprocessId := i;
 end;
 
-
-procedure TfrmMain.edProcNameChange(Sender: TObject);
-begin
-
-end;
 
 // Get the PID from this application
 procedure TfrmMain.butGetPIDClick(Sender: TObject);
@@ -296,6 +299,7 @@ procedure TfrmMain.FormCreate(Sender: TObject);
 begin
   oLoopbackCapture := TLoopbackCapture.Create(Handle);
   butGetPID.OnClick(Self);
+  oDevicePeriod := tbDevicePeriod.Position * AUDIO_BUFFER_FMT;
   bEdited := False;
 end;
 
@@ -319,20 +323,21 @@ begin
       goto done;
     end;
 
-  if not TryStrToInt(edPID.Text, processId) then
+  // Check for valid inputs
+  aprocessId := StrToInt(edPID.Text);
+  if (aprocessId <= 0) then
     begin
-      processId := 0;
-      edPID.Text := 'Non numeric value';
-      hr := E_FAIL;
-      goto done;
-    end
-  else
-    processId := StrToInt(edPID.Text);
+      aprocessId := 0;
+      edPID.Text := IntToStr(aprocessId);
+    end;
 
   if rb1.Checked then
     bIncludeProcessTree := False
   else if rb2.Checked then
     bIncludeProcessTree := True;
+
+  // Buffersize depends on latency and bitrate
+  oDevicePeriod := tbDevicePeriod.Position * AUDIO_BUFFER_FMT;
 
   // Bitrate
   if rb44.Checked then
@@ -342,7 +347,6 @@ begin
 
   if SUCCEEDED(hr) then
     begin
-
       sFileName := Format('%s', [edFileName.Text]);
       if (sOrgFileName = '') or bEdited then
         begin
@@ -381,9 +385,10 @@ begin
 
       // Capture the audio stream from the default rendering device.
       hr := oLoopbackCapture.StartCaptureAsync(Handle,
-                                               processId,
+                                               aprocessId,
                                                bIncludeProcessTree,
                                                aWavFmt,
+                                               oDevicePeriod,
                                                LPCWSTR(sFileName + lblFileExt.Caption));
       if FAILED(hr) then
         begin
@@ -400,15 +405,21 @@ end;
 procedure TfrmMain.OnProgressEvent(var aMessage: TMessage);
 begin
   iProgress := aMessage.WParam;
-  sbMsg.SimpleText := Format('Capturing from source: Bytes processed: %d',[iProgress]);
-
+  lblMsg.Caption := Format('Capturing from source: Bytes processed: %d',[iProgress]);
 end;
 
 
 procedure TfrmMain.OnRecordingStopped(var AMessage: TMessage);
 begin
   butPlayData.Enabled := True;
-  sbMsg.SimpleText := Format('Capturing Stopped: %s bytes processed.', [iProgress.ToString()]);
+  lblMsg.Caption := Format('Capturing Stopped: %s bytes processed.', [iProgress.ToString()]);
+end;
+
+
+procedure TfrmMain.tbDevicePeriodChange(Sender: TObject);
+begin
+  lblDevicePeriod.Caption := Format('Device Period (%d MilliSeconds)', [tbDevicePeriod.Position]);
+  oDevicePeriod := tbDevicePeriod.Position * AUDIO_BUFFER_FMT;
 end;
 
 end.

@@ -25,12 +25,15 @@
 // 12/03/2023 Tony                Updated to match mmio
 // 02/04/2023 All                 Pre-release to 3.1.5
 // 03/04/2023 Tony                Fixed IAudioClient.GetMixFormat.
+// 28/04/2023 Tony                Fixed AudioClient.IsFormatSupported.
+// 02/05/2023 Tony                Changed IAudioCaptureClient.GetBuffer params.
+// 05/05/2023 Tony                Updated hnsPeriodicity documentation in AudioClient.Activate.
 //------------------------------------------------------------------------------
 //
 // Remarks: Requires Windows 8 or later.
 //
 // Related objects: -
-// Related projects: MfPackX314
+// Related projects: MfPackX315
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -278,7 +281,7 @@ type
                         hnsBufferDuration: REFERENCE_TIME;
                         hnsPeriodicity: REFERENCE_TIME;
                         pFormat: PWAVEFORMATEX;
-                        {optional, can be Nil or a pointer to GUID_NULL} const AudioSessionGuid: {LPC}TGUID): HResult; stdcall;
+                        {optional, can be Nil or a pointer to GUID_NULL} const AudioSessionGuid: LPCGUID): HResult; stdcall;
     // Description:
     //
     //  Initializes the audio stream by creating a connection to the Windows Audio System (WAS)
@@ -344,12 +347,17 @@ type
     //    needed during streaming to compute render buffer request sizes.
     //
     //  hnsPeriodicity - [in]
-    //    The length in 100-nanosecond (hns) units of a single packet. A packet is
-    //    a single unit of transfer from the client to the KS endpoint. A certain number of "frames" or
-    //    "samples" will be contained in a packet, based on the number of samples / second designated in
-    //    pFormat.  In a similar manner to hnsBufferDuration, if the time requested doesn't fall on a frame
-    //    boundary, the duration will be rounded up to the next higher frame. This value cannot be less
-    //    than the minimum periodicity reported by the GetDevicePeriod() method.
+    //    The device period.
+    //    This parameter can be nonzero only in exclusive mode.
+    //    In shared mode, always set this parameter to 0.
+    //    In exclusive mode, this parameter specifies the requested scheduling period for successive
+    //    buffer accesses by the audio endpoint device.
+    //    If the requested device period lies outside the range that is set by the device's minimum period and
+    //    the system's maximum period, then the method clamps the period to that range.
+    //    If this parameter is 0, the method sets the device period to its default value.
+    //    To obtain the default device period, call the IAudioClient.GetDevicePeriod method.
+    //    If the AUDCLNT_STREAMFLAGS_EVENTCALLBACK stream flag is set and AUDCLNT_SHAREMODE_EXCLUSIVE is set as
+    //    the ShareMode, then hnsPeriodicity must be nonzero and equal to hnsBufferDuration.
     //
     //  pFormat - [in]
     //    pointer to the application's desired audio stream format.
@@ -495,9 +503,9 @@ type
     //
 
     function IsFormatSupported(ShareMode: AUDCLNT_SHAREMODE;
-                               pFormat: WaveFormatEx;
-                               out ppClosestMatch: PWaveFormatEx // Exclusive mode can't suggest a "closest match", you have to set this param to Nil.
-                               ): HResult; stdcall;
+                               const pFormat: PWaveFormatEx;
+                               [ref] const ppClosestMatch: PWaveFormatEx // Exclusive mode can't suggest a "closest match", you have to set this param to Nil.
+                              ): HResult; stdcall;
     // Description:
     //
     //  Provides a way for the user to determine, prior to initialization, whether a given format
@@ -541,31 +549,61 @@ type
     //  This method does not require that the Initialize method be called first.
     //
 
-    function GetMixFormat(out ppDeviceFormat: PWAVEFORMATEX): HResult; stdcall;
+    function GetMixFormat([ref] const ppDeviceFormat: PWAVEFORMATEX): HResult; stdcall;
     // Description:
     //
-    //  Returns the current format of the WAS for this device. This is a device method
-    //  which doesn't require prior audio stream initialization.
+    //  The GetMixFormat method retrieves the stream format that the audio engine uses for its
+    //  internal processing of shared-mode streams.
     //
     // Parameters:
     //
     //  ppDeviceFormat - [out]
-    //    Address for returning a pointer to the current audio device format.
-    //    This is the format the WAS will use to communicate with the device and is determined
-    //    by the preferred device format set in the control panel. The memory returned should
-    //    be freed by the caller using CoTaskMemFree() on the returned memory pointer.
+    //    Pointer variable into which the method writes the address of the mix format.
+    //    This parameter must be a valid, non-Nil pointer to a pointer variable.
+    //    The method writes the address of a WAVEFORMATEX (or WAVEFORMATEXTENSIBLE) structure to this variable.
+    //    The method allocates the storage for the structure.
+    //    The caller is responsible for freeing the storage, when it is no longer needed, by calling the CoTaskMemFree function.
+    //    If the GetMixFormat call fails, *ppDeviceFormat is Nil.
+    //    For information about WAVEFORMATEX, WAVEFORMATEXTENSIBLE, and CoTaskMemFree, see the Windows SDK documentation.
     //
     // Return Values:
     //
     //    S_OK if successful, failure otherwise.
     //    AUDCLNT_E_DEVICE_INVALIDATED, if WAS device was removed.
+    //    AUDCLNT_E_SERVICE_NOT_RUNNING, The Windows audio service is not running.
+    //    E_POINTER, Parameter ppDeviceFormat is nil.
+    //    E_OUTOFMEMORY, Out of memory.
+    //
     //
     // Remarks:
     //
-    //  This method may be called at any time and will always return the same format.
+    //   The client can call this method before calling the IAudioClient.Initialize method.
+    //   When creating a shared-mode stream for an audio endpoint device,
+    //   the Initialize method always accepts the stream format obtained from a GetMixFormat call on the same device.
     //
-    //  For all cases where the format type contains > 2 channels, the WAVEFORMATEXTENSIBLE type
-    //  will be used and the returned dwChannelMask field will be set correctly.
+    //   The mix format is the format that the audio engine uses internally for digital processing of shared-mode streams.
+    //   This format is not necessarily a format that the audio endpoint device supports.
+    //   Thus, the caller might not succeed in creating an exclusive-mode stream with a format obtained by calling GetMixFormat.
+    //
+    //   For example, to facilitate digital audio processing, the audio engine might use a mix format that represents samples as
+    //   floating-point values.
+    //   If the device supports only integer PCM samples, then the engine converts the samples to or from integer PCM values at
+    //   the connection between the device and the engine.
+    //   However, to avoid resampling, the engine might use a mix format with a sample rate that the device supports.
+    //
+    //   To determine whether the Initialize method can create a shared-mode or exclusive-mode stream with a particular format,
+    //   call the IAudioClient.IsFormatSupported method.
+    //
+    //   By itself, a WAVEFORMATEX structure cannot specify the mapping of channels to speaker positions.
+    //   In addition, although WAVEFORMATEX specifies the size of the container for each audio sample,
+    //   it cannot specify the number of bits of precision in a sample (for example, 20 bits of precision in a 24-bit container).
+    //   However, the WAVEFORMATEXTENSIBLE structure can specify both the mapping of channels to speakers and
+    //   the number of bits of precision in each sample.
+    //   For this reason, the GetMixFormat method retrieves a format descriptor that is in the form of a
+    //   WAVEFORMATEXTENSIBLE structure instead of a standalone WAVEFORMATEX structure.
+    //   Through the ppDeviceFormat parameter, the method outputs a pointer to the WAVEFORMATEX structure that is
+    //   embedded at the start of this WAVEFORMATEXTENSIBLE structure.
+    //   For more information about WAVEFORMATEX and WAVEFORMATEXTENSIBLE, see the Windows DDK documentation.
     //
 
     function GetDevicePeriod({out_opt} phnsDefaultDevicePeriod: PREFERENCE_TIME;
@@ -1020,7 +1058,7 @@ type
     // 'pFormat' in the annotation below refers to the WAVEFORMATEX structure used to initialize IAudioClient.
     //
     function GetBuffer(const NumFramesRequested: UINT;
-                       {out} ppData: PByte): HResult; stdcall;    // modified by Jacob C
+                       out ppData: PByte): HResult; stdcall;    // modified by Jacob C
 
     //-------------------------------------------------------------------------
     // Description:
@@ -1077,8 +1115,8 @@ type
     function GetBuffer(out ppData: PByte;
                        out pNumFramesToRead: UINT32;
                        out pdwFlags: AUDCLNT_BUFFERFLAGS;
-                       out pu64DevicePosition: UINT64;
-                       out pu64QPCPosition: UINT64): HResult; stdcall;
+                       {out} pu64DevicePosition: PUINT64;
+                       {out} pu64QPCPosition: PUINT64): HResult; stdcall;
     //-------------------------------------------------------------------------
     // Description:
     //

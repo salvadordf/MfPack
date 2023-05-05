@@ -124,6 +124,7 @@ type
 
     function RecordAudioStream(dataFlow: EDataFlow;  // eRender or eCapture
                                role: ERole;          // eConsole, eMultimedia or eCommunications
+                               devicePeriod: DWord;
                                ppfileName: LPWSTR): HResult;
 
     property StopRecording: Boolean read bStopRec write bStopRec;
@@ -196,13 +197,14 @@ begin
       goto done;
     end;
 
-  HandleThreadMessages(GetCurrentThread);
-
+  // Handle all other messages, like managing controls, moving window etc.
+  HandleThreadMessages(GetCurrentThread());
   // Send score. Don't use PostMessage because it set priority above this thread.
   SendMessage(hwOwner,
               WM_PROGRESSNOTIFY,
               NumFrames,
               0);
+
 done:
   Result := hr;
 end;
@@ -367,11 +369,13 @@ end;
 //-----------------------------------------------------------
 function TAudioSink.RecordAudioStream(dataFlow: EDataFlow;  // eRender or eCapture
                                       role: ERole;          // eConsole, eMultimedia or eCommunications
+                                      devicePeriod: DWord;
                                       ppfileName: LPWSTR): HResult;
 var
   hr: HResult;
   mr: MMResult;
-  hnsRequestedDuration: REFERENCE_TIME;
+  hnsDefaultDevicePeriod: REFERENCE_TIME;
+  hnsMinimumDevicePeriod: REFERENCE_TIME;
   hnsActualDuration: REFERENCE_TIME;
   bufferFrameCount: UINT32;
   numFramesAvailable: UINT32;
@@ -387,9 +391,10 @@ var
   ppwfx: PWAVEFORMATEX;
   //
   cycle : Int64;
-
   pu64DevicePosition: UINT64;
   pu64QPCPosition: UINT64;
+  //
+
 
 label
   done;
@@ -405,7 +410,6 @@ begin
   if FAILED(hr) then
     goto done;
 
-  hnsRequestedDuration := REFTIMES_PER_SEC;
   packetLength := 0;
 
   // Enumerate on capture and render devices
@@ -432,16 +436,31 @@ begin
   if FAILED(hr) then
     goto done;
 
+  // Get the mixformat from the WAS
+  // See the comments on IAudioClient.GetMixFormat.
+  //
   hr := pAudioClient.GetMixFormat(ppwfx);
   if FAILED(hr) then
     goto done;
 
+  // The original sample creates a "gues what" DevicePeriod,
+  // that will cause sound disturbtion when capture sound from a streameservice like YouTube or other high latency services.
+  // To prevent this we use a minimum like hnsDefaultDevicePeriod.
+  hr := pAudioClient.GetDevicePeriod(@hnsDefaultDevicePeriod,
+                                     @hnsMinimumDevicePeriod);
+  if FAILED(hr) then
+    goto done;
+
+  // Don't go to the minimum, because you will get a lot of hick-ups
+  if (DevicePeriod < hnsDefaultDevicePeriod) then
+    DevicePeriod := hnsDefaultDevicePeriod;
+
   hr := pAudioClient.Initialize(AUDCLNT_SHAREMODE_SHARED,
                                 AUDCLNT_STREAMFLAGS_LOOPBACK,
-                                hnsRequestedDuration,
-                                0,
+                                DevicePeriod,
+                                0, // Must be zero when using shared mode.
                                 ppwfx,
-                                GUID_NULL);
+                                @GUID_NULL);
   if FAILED(hr) then
     goto done;
 
@@ -479,7 +498,9 @@ begin
   while (bStopRec = FALSE) do
     begin
       // Sleep for half the buffer duration.
-      Sleep(hnsActualDuration div REFTIMES_PER_MILLISEC div 2);
+     // Sleep(hnsActualDuration div REFTIMES_PER_MILLISEC div 2);
+      HandleThreadMessages(GetCurrentThread(),
+                           hnsActualDuration div REFTIMES_PER_MILLISEC div 2);
 
       hr := pCaptureClient.GetNextPacketSize(packetLength);
       if FAILED(hr) then
@@ -491,8 +512,8 @@ begin
           hr := pCaptureClient.GetBuffer(pData,
                                          numFramesAvailable,
                                          flags,
-                                         pu64DevicePosition,
-                                         pu64QPCPosition);
+                                         @pu64DevicePosition,
+                                         @pu64QPCPosition);
           if FAILED(hr) then
             goto done;
 
@@ -521,8 +542,9 @@ begin
          if cycle >= (3600 * 16) then
            bStopRec := True;
 
-          inc(cycle, 1);
-        end;
+         Inc(cycle,
+             1);
+      end;
     end;
 
   hr := pAudioClient.Stop();  // Stop recording.
@@ -555,7 +577,7 @@ var
 begin
   hr := S_OK;
 
-  // The mmioOpen() function is deprecated, but still can be used in Win 11
+  // The mmioOpen() function is NOT deprecated as documentation says.
 
   // Must initialize PMMIOINFO = nil, otherwise mmioOpen wil raise a pointer error.
   mi := nil;

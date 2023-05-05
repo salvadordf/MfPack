@@ -22,6 +22,7 @@
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
 // 02/04/2023 All                 PiL release  SDK 10.0.22621.0 (Windows 11)
+// 05/05/2023 Tony                Updated and fixed some isues.
 //------------------------------------------------------------------------------
 //
 // Remarks: Requires Windows 10 or later.
@@ -83,6 +84,7 @@ uses
   WinApi.MediaFoundationApi.MfApi,
   WinApi.MediaFoundationApi.MfObjects,
   WinApi.MediaFoundationApi.MfUtils,
+  WinApi.MediaFoundationApi.MfError,
   {CoreAudioApi}
   WinApi.CoreAudioApi.MMDeviceApi,
   WinApi.CoreAudioApi.AudioClient,
@@ -152,6 +154,7 @@ type
     m_cbHeaderSize: DWord;
     m_cbDataSize: DWord;
     m_WavFormat: TWavFormat;
+    m_DevicePeriod: REFERENCE_TIME;
 
     hwOwner: HWND;
 
@@ -178,8 +181,6 @@ type
     procedure Reset();
     procedure SetDeviceStateErrorIfFailed(hr: HResult);
 
-    procedure SetWavFormat(aFormat: TWavFormat);
-
   public
 
     constructor Create(hMF: HWND);
@@ -193,11 +194,13 @@ type
                                const processId: DWord;
                                includeProcessTree: Boolean;
                                const wavFormat: TWavFormat;
+                               const devicePeriod: REFERENCE_TIME;
                                const outputFileName: LPCWSTR): HResult;
 
     function StopCaptureAsync(): HResult;
 
-    property WavFormat: TWavFormat read m_WavFormat write SetWavFormat;
+    property WavFormat: TWavFormat read m_WavFormat;
+    property AudioClientDevicePeriod: REFERENCE_TIME read m_DevicePeriod;
 
   end;
 
@@ -294,7 +297,9 @@ begin
 
   // The app can call m_AudioClient.GetMixFormat to get the capture format if such is implemented.
   hr := m_AudioClient.GetMixFormat(@m_CaptureFormat);
-  // Set 16 - bit PCM format manualy when we get an E_NOTIMPL result.
+
+
+  // Set 16 - bit PCM format manualy when we get an E_NOTIMPL result from GetMixFormat.
   if (hr = E_NOTIMPL) then
     begin
       m_CaptureFormat.wFormatTag := WAVE_FORMAT_PCM;
@@ -320,10 +325,10 @@ begin
   // Initialize the AudioClient in Shared Mode with the user specified buffer
   hr := m_AudioClient.Initialize(AUDCLNT_SHAREMODE_SHARED,
                                  AUDCLNT_STREAMFLAGS_LOOPBACK or AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
-                                 200000,
-                                 AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM,
+                                 m_DevicePeriod, // Most hardware values are in between 100000 and 60000, 100ms/sec.
+                                 0, // Must be zero in shared mode.
                                  @m_CaptureFormat,
-                                 GUID_NULL);
+                                 @GUID_NULL);
   if FAILED(hr) then
     goto leave;
 
@@ -799,7 +804,7 @@ begin
 
   //while SUCCEEDED(m_AudioCaptureClient.GetNextPacketSize(FramesAvailable)) and (FramesAvailable > 0) do
 
-  while {True and} (m_DeviceState <> Stopping) or (m_DeviceState <> Stopped) or (m_DeviceState <> Error) do
+  while (m_DeviceState <> Stopping) or (m_DeviceState <> Stopped) or (m_DeviceState <> Error) do
     begin
 
       if not Assigned(m_AudioCaptureClient) then
@@ -827,8 +832,8 @@ begin
         hr := m_AudioCaptureClient.GetBuffer(PByte(Data),
                                              FramesAvailable,
                                              dwCaptureFlags,
-                                             u64DevicePosition,
-                                             u64QPCPosition);
+                                             @u64DevicePosition,
+                                             @u64QPCPosition);
         if FAILED(hr) then
           begin
              ErrMsg(Format('m_AudioCaptureClient.GetBuffer failed. LastError = %d',[GetLastError()]), hr);
@@ -854,7 +859,8 @@ begin
         // Increase the size of our 'data' chunk. m_cbDataSize needs to be accurate.
         inc(m_cbDataSize, cbBytesToCapture);
         inc(NumBytesWritten, dwBytesWritten);
-        HandleThreadMessages(GetCurrentThread);
+
+        HandleThreadMessages(GetCurrentThread());
         // Send score. Don't use PostMessage because it set priority above this thread.
         SendMessage(hwOwner,
                     WM_PROGRESSNOTIFY,
@@ -864,7 +870,6 @@ begin
 
         // Release buffer back
         hr := m_AudioCaptureClient.ReleaseBuffer(FramesAvailable);
-        HandleThreadMessages(GetCurrentThread);
     end;
 
 leave:
@@ -1010,19 +1015,13 @@ begin
 end;
 
 
-procedure TLoopbackCapture.SetWavFormat(aFormat:  TWavFormat);
-begin
-  m_WavFormat := aFormat;
-end;
-
-
-
 // PUBLIC
 
 function TLoopbackCapture.StartCaptureAsync(const hWindow: HWND;
                                             const processId: DWord;
                                             includeProcessTree: Boolean;
                                             const wavFormat: TWavFormat;
+                                            const devicePeriod: REFERENCE_TIME;
                                             const outputFileName: LPCWSTR): HResult;
 var
   hr: HResult;
@@ -1045,6 +1044,7 @@ begin
 
   hwOwner := hWindow;
   m_outputFileName := outputFileName;
+  m_DevicePeriod := DevicePeriod;
 
   hr := InitializeLoopbackCapture();
   if FAILED(hr) then
