@@ -10,18 +10,20 @@
 // Release date: 25-11-2022
 // Language: ENU
 //
-// Revision Version: 3.1.4
+// Revision Version: 3.1.5
 // Description: UI for example of how to use the SinkWriter.
 //
 // Organisation: FactoryX
 // Initiator(s): Tony (maXcomX), Peter (OzShips)
-// Contributor(s): Tony Kalf (maXcomX)
+// Contributor(s): Tony Kalf (maXcomX), Renate Schaaf.
 //
 //------------------------------------------------------------------------------
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
 // 28/08/2022 All                 PiL release  SDK 10.0.22621.0 (Windows 11)
+// 18/05/2023 Renate              Fixed runtime error on selecting multiple bitmaps.
+//                                Speedup of bitmap resizing using D2D1_1
 //------------------------------------------------------------------------------
 //
 // Remarks: Requires Windows 10 or later.
@@ -117,7 +119,6 @@ type
   private
     { Private declarations }
 
-    procedure CheckBitmapFormat(var bmp: TBitmap);
     // Recieve messages from the sinkwriter.
     procedure OnProcesBmp(var Msg: TMessage); message WM_BITMAP_PROCESSING_MSG;
     procedure OnSinkWriterMsg(var Msg: TMessage); message WM_SINKWRITER_WRITES_BITMAP;
@@ -213,26 +214,10 @@ begin
 end;
 
 
-procedure TMainForm.CheckBitmapFormat(var bmp: TBitmap);
-begin
-  // if we have an unsupported format, we change it to the proper one and use this copy of the original.
-  // The original file will be untouched.
-  if (bmp.PixelFormat <> pf24bit) then
-    begin
-      lblInfo.Caption := Format('Unsupported pixelformat (%s)! The selected file pixelformat has been converted to 24 bit',
-                                [PixelFormatToStr(bmp.PixelFormat)]);
-      bmp.PixelFormat := pf24Bit;
-      FBitmapFiles.Strings[0] := Format('%s_%s.bmp',
-                                        [ChangeFileExt(FBitmapFiles.Strings[0], ''),
-                                         PixelFormatToStr(bmp.PixelFormat)]);
-      bmp.SaveToFile(FBitmapFiles.Strings[0]);
-    end;
-end;
-
-
 procedure TMainForm.mnuSelectOneBitmapClick(Sender: TObject);
 var
   bm: TBitmap;
+
 begin
 try
   bm := TBitmap.Create();
@@ -244,7 +229,6 @@ try
     begin
       FBitmapFiles.Append(dlgOpenPicture.FileName);
       bm.LoadFromFile(FBitmapFiles.Strings[0]);
-      CheckBitmapFormat(bm);
       imgBitmap.Picture.Assign(bm);
       lblInfo.Caption := 'Select ''Render Video File'' or select ''Video output'' to configure the video.';
       mnuRender.Enabled := True;
@@ -267,16 +251,12 @@ Var
   Path: string;
   SearchRec: TSearchRec;
   DirList: TStringList;
-  hr: HResult;
-  i: Integer;
-  bm: TBitmap;
 
 begin
-  hr := S_OK;
 
   if dlgOpenPicture.Execute then
     begin
-
+      mnuRender.Enabled := False;
       // Create a stringlist to add the filenames found.
       DirList := TStringList.Create;
       DirList.Sorted := True;
@@ -295,7 +275,7 @@ begin
         {$WARN SYMBOL_PLATFORM ON}
           begin
             repeat
-              DirList.Add(SearchRec.Name); //Fill the list
+              DirList.Add(IncludeTrailingPathDelimiter(Path) + SearchRec.Name); //Fill the list
             until FindNext(SearchRec) <> 0;
             FindClose(SearchRec);
           end;
@@ -309,33 +289,14 @@ begin
             Exit;
           end;
 
-        bm := TBitmap.Create();
-        // Check if each bitmap pixelformat is 24bit and change it when not.
-        for i := 0 to FBitmapFiles.Count - 1 do
-          begin
-            bm.FreeImage();
-            bm.LoadFromFile(FBitmapFiles[i]);
-            CheckBitmapFormat(bm);
-          end;
-
       finally
 
         DirList.Free;
-        FreeAndNil(bm);
+        lblInfo.Font.Color := clWindowText;
+        lblInfo.Caption := 'Select ''Render Video File'' or select ''Video output'' to configure the video.';
+        mnuRender.Enabled := True;
+        imgBitmap.Picture.LoadFromFile(FBitmapFiles[0]);
 
-        if Failed(hr) then
-          begin
-            lblInfo.Font.Color := clRed;
-            lblInfo.Caption := 'Could not load the bitmaps.';
-            mnuRender.Enabled := False;
-          end
-        else
-          begin
-            lblInfo.Font.Color := clWindowText;
-            lblInfo.Caption := 'Select ''Render Video File'' or select ''Video output'' to configure the video.';
-            mnuRender.Enabled := True;
-            imgBitmap.Picture.LoadFromFile(FBitmapFiles[0]);
-          end;
       end;
     end;
 end;
@@ -352,7 +313,7 @@ begin
     end;
 
   // Ask the user to select one.
-  if dlgVideoSetttings.ShowModal = mrOk then
+  if (dlgVideoSetttings.ShowModal = mrOk) then
     begin
       lblInfo.Caption := 'Select ''Select Single Bitmap'', ''Select Multiple Bitmaps'' or ''Render Video File''';
     end
@@ -382,6 +343,11 @@ begin
                              FSinkWriter.SinkWriterParams.pwcVideoFileName]);
   lblInfo.Update();
 end;
+
+
+initialization
+
+  ReportMemoryLeaksOnShutDown := True;
 
 
 end.
