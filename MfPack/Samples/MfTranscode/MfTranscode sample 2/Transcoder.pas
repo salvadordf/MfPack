@@ -7,10 +7,10 @@
 //                   https://github.com/FactoryXCode/MfPack
 // Module: Transcoder.pas
 // Kind: Pascal Unit
-// Release date: 24-01-2020
+// Release date: 24-06-2023
 // Language: ENU
 //
-// Revision Version: 3.1.4
+// Revision Version: 3.1.5
 // Description: This is a modified class of the Transcoder sample,
 //
 // Company: FactoryX
@@ -21,13 +21,13 @@
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
-// 28/08/2022 All                 PiL release  SDK 10.0.22621.0 (Windows 11)
+// 20/07/2023 All                 Carmel release  SDK 10.0.22621.0 (Windows 11)
 //------------------------------------------------------------------------------
 //
 // Remarks: Requires Windows 7 or higher.
 //
 // Related objects: -
-// Related projects: MfPackX314
+// Related projects: MfPackX315
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -63,6 +63,10 @@ unit Transcoder;
 
 interface
 
+  // Undefine this when not needed!
+  {$DEFINE SAVE_DEBUG_REPORT}
+  {$DEFINE SHOW_IN_MESSAGES_IDE}
+
 uses
   {WinApi}
   WinApi.Windows,
@@ -72,6 +76,7 @@ uses
   WinApi.Unknwn,
   {System}
   System.SysUtils,
+  System.Classes,
   {ActiveX}
   WinApi.ActiveX.PropIdl,
   WinApi.ActiveX.ObjBase,
@@ -81,23 +86,29 @@ uses
   WinApi.MediaFoundationApi.MfObjects,
   WinApi.MediaFoundationApi.MfError,
   WinApi.MediaFoundationApi.MfUtils,
-  WinApi.MediaFoundationApi.MfMetLib;
+  WinApi.MediaFoundationApi.MfMetLib,
+  {Application}
+  Common;
 
 const
-  WM_PROGRESSNOTIFY = WM_APP + 1;
+  WM_PROGRESSNOTIFY = WM_USER + 1;
+  WM_STATUSNOTIFY   = WM_USER + 2;
 
 type
 
   TTranscoder = class(TObject)
   private
     rcHandle: HWnd;         // Handle of the windows that receives the messages.
-    pCont: TStreamContentsArray;  // Array with all audio and video information from the source file.
+    pCont: TStreamContentsArray;  // Array with audio and video information.
     m_pSession: IMFMediaSession;
     m_pSource: IMFMediaSource;
     m_pAttributes: IMFAttributes;  // source attributes
     m_pTopology: IMFTopology;
     m_pProfile: IMFTranscodeProfile;
     m_pClock: IMFPresentationClock;  // Presentation Clock to get position
+    m_Duration: UInt64;
+    m_Position: UInt64;
+
 
     function Shutdown(): HResult;
     function Transcode(): HResult;
@@ -105,19 +116,29 @@ type
     // usage;  arrayindex := GetMediaFromContArray(mtAudio or mtVideo);
     function GetMediaFromContArray(const mitype: TMediaTypes): Integer;
 
+    procedure SendStatusNotify(aStatusMsg: LPCWSTR);
+
   public
-    m_Duration: UInt64;
-    m_Position: UInt64;
 
     constructor Create(clHandle: HWnd);
     destructor Destroy(); override;
 
-    function OpenFile(sURL: PWideChar): HResult;
-    function ConfigureAudioOutput(): HResult;
-    function ConfigureVideoOutput(vWidth: UInt32 = 320; vHeight: UInt32 = 240): HResult;
-    function ConfigureContainer(): HResult;
-    function EncodeToFile(sURL: PWideChar): HResult;
+    function OpenFile(aURL: TFileName): HResult;
+
+    function ConfigureAudioOutput(const mfAudioFormat: TGuid;
+                                  aIndex: Integer = 0): HResult;
+
+    function ConfigureVideoOutput(aVideoMediaFmt: TGuid): HResult;
+
+    function ConfigureContainer(const containerType: TGuid): HResult;
+
+    function EncodeToFile(aURL: TFileName): HResult;
     function Stop(): Boolean;
+
+    // Read only properties
+    property Duration: UInt64 read m_Duration;
+    property Position: UInt64 read m_Position;
+
   end;
 
 
@@ -130,8 +151,9 @@ constructor TTranscoder.Create(clHandle: HWnd);
 begin
   inherited Create();
 
-  CoInitializeEx(Nil,
-                 COINIT_APARTMENTTHREADED or COINIT_DISABLE_OLE1DDE);
+  // A Delphi Forms Application will initialize Com by default.
+  //CoInitializeEx(nil,
+  //               COINIT_APARTMENTTHREADED or COINIT_DISABLE_OLE1DDE);
 
   // Check if the current MF version match user's
   if FAILED(MFStartup(MF_VERSION, 0)) then
@@ -142,6 +164,7 @@ begin
                  MB_ICONSTOP);
       Abort();
     end;
+
   rcHandle := clHandle;
 end;
 
@@ -164,7 +187,7 @@ begin
   SafeRelease(m_pAttributes);
 
   SetLength(pCont, 0);
-  pCont := Nil;
+  pCont := nil;
 
   inherited Destroy;
 end;
@@ -181,27 +204,21 @@ end;
 //  sURL: Input file URL.
 //-------------------------------------------------------------------
 
-function TTranscoder.OpenFile(sURL: PWideChar): HResult;
+function TTranscoder.OpenFile(aURL: TFileName): HResult;
 var
   hr: HResult;
   pPresentationDescriptor: IMFPresentationDescriptor;
 
 begin
 
-  if Not Assigned(sURL) then
+  if not FileExists(aURL) then
     begin
       Result := E_INVALIDARG;
       Exit;
     end;
 
   // Create the media source.
-  { This method is deprecated
-    hr := CreateMediaSourceFromUrl(sURL,
-                                   m_pSource);
-  }
-
-  // Create the media source.
-  hr := CreateObjectFromUrl(sURL,
+  hr := CreateObjectFromUrl(aURL,
                             m_pSource);
 
   // Create the media session.
@@ -214,10 +231,13 @@ begin
     hr := MFCreateTranscodeProfile(m_pProfile);
 
   //
-  m_pSource.CreatePresentationDescriptor(pPresentationDescriptor);
-  GetStreamContents(pPresentationDescriptor,
-                    m_pSource,
-                    pCont);
+  if SUCCEEDED(hr) then
+    hr := m_pSource.CreatePresentationDescriptor(pPresentationDescriptor);
+
+  if SUCCEEDED(hr) then
+    hr := GetStreamContents(pPresentationDescriptor,
+                            m_pSource,
+                            pCont);
 
   Result := hr;
 end;
@@ -230,7 +250,8 @@ end;
 //
 //-------------------------------------------------------------------
 
-function TTranscoder.ConfigureAudioOutput(): HResult;
+function TTranscoder.ConfigureAudioOutput(const mfAudioFormat: TGuid;
+                                          aIndex: Integer = 0): HResult;
 var
   hr: HResult;
   dwMTCount: DWORD;
@@ -242,7 +263,7 @@ var
 begin
 
   {$IFDEF DEBUG}
-  assert(m_pProfile <> Nil);
+  assert(m_pProfile <> nil);
   {$ENDIF}
 
   dwMTCount := 0;
@@ -250,9 +271,9 @@ begin
   // Get the list of output formats supported by the Windows Media
   // audio encoder.
 
-  hr := MFTranscodeGetAudioOutputAvailableTypes(MFAudioFormat_WMAudioV9,
-                                                DWord(MFT_ENUM_FLAG_ALL),
-                                                Nil,
+  hr := MFTranscodeGetAudioOutputAvailableTypes(mfAudioFormat,
+                                                DWord(MFT_ENUM_FLAG_TRANSCODE_ONLY {MFT_ENUM_FLAG_ALL}),
+                                                nil,
                                                 pAvailableTypes);
 
   // Get the number of elements in the list.
@@ -260,36 +281,46 @@ begin
     begin
       hr := pAvailableTypes.GetElementCount(dwMTCount);
 
-      if dwMTCount = 0 then
+      if (dwMTCount = 0) then
         begin
           hr := E_UNEXPECTED;
         end;
     end;
 
-  // In this simple case, use the first media type in the collection.
-
+  // Get the given media type from the collection.
   if SUCCEEDED(hr) then
-    hr := pAvailableTypes.GetElement(0,
+    hr := pAvailableTypes.GetElement(aIndex,
                                      pUnkAudioType);
-
   if SUCCEEDED(hr) then
     hr := pUnkAudioType.QueryInterface(IID_IMFMediaType,
                                        pAudioType);
+  if FAILED(hr) then
+    begin
+      DebugMsg('No suitable transform was found to encode or decode the content.', hr);
+      Result := hr;
+      Exit;
+    end;
+
+  {$IFDEF SAVE_DEBUG_REPORT}
+  FMediaTypeDebug.LogMediaType(pAudioType);
+  FMediaTypeDebug.DebugResults.SaveToFile('AudioProfiles.txt');
+  {$ENDIF}
+
+
 
   // Create a copy of the attribute store so that we can modify it safely.
-  if SUCCEEDED(hr) then
-    hr := MFCreateAttributes(pAudioAttrs,
-                             0);
+  hr := MFCreateAttributes(pAudioAttrs,
+                           0);
 
   if SUCCEEDED(hr) then
     hr := pAudioType.CopyAllItems(pAudioAttrs);
 
-  // Set the encoder to be Windows Media audio encoder, so that the
+  // Set the encoder to audio encoder, so that the
   // appropriate MFTs are added to the topology.
 
   if SUCCEEDED(hr) then
     hr := pAudioAttrs.SetGUID(MF_MT_SUBTYPE,
-                              MFAudioFormat_WMAudioV9);
+                              mfAudioFormat);
 
   // Set the attribute store on the transcode profile.
   if SUCCEEDED(hr) then
@@ -307,42 +338,53 @@ end;
 //
 //-------------------------------------------------------------------
 
-function TTranscoder.ConfigureVideoOutput(vWidth: Uint32 = 320; vHeight: Uint32 = 240): HResult;
+function TTranscoder.ConfigureVideoOutput(aVideoMediaFmt: TGuid): HResult;
 var
   hr: HResult;
   pVideoAttrs: IMFAttributes;
   arIndex: Integer;
-  uiRate: UInt32;
+
+label
+  done;
 
 begin
   {$IFDEF DEBUG}
-  assert(m_pProfile <> Nil);
+  assert(m_pProfile <> nil);
   {$ENDIF}
 
   // Get the video properties from the array
   arIndex := GetMediaFromContArray(mtVideo);
 
+
   // Configure the video stream
+  if IsEqualGUID(aVideoMediaFmt,
+                 GUID_NULL) then
+    begin
+      // Create empty attribute store.
+      hr := MFCreateAttributes(pVideoAttrs,
+                               0);
+      goto done;
+    end;
 
-  // Create a new attribute store.
-  hr := MFCreateAttributes(pVideoAttrs, 5);
+  // Create attribute store.
+  hr := MFCreateAttributes(pVideoAttrs,
+                           5);
 
-  // Set the encoder to be Windows Media video encoder, so that the appropriate MFTs are added to the topology.
+  // Set the encoder, so that the appropriate MFTs are added to the topology.
   if SUCCEEDED(hr) then
     hr := pVideoAttrs.SetGUID(MF_MT_SUBTYPE,
-                              MFVideoFormat_WMV3);
+                              aVideoMediaFmt);
 
   // Set the frame rate.
   // Framerate is calculated by FrameRateNumerator / FrameRateDenominator
   // For example:  5000000 / 208541 = 23.97 frames per second.
-  uiRate := Round(pCont[arIndex].video_FrameRateNumerator / pCont[arIndex].video_FrameRateDenominator);
   if SUCCEEDED(hr) then
     hr := MFSetAttributeRatio(pVideoAttrs,
-                              MF_MT_FRAME_RATE, uiRate,
-                              1);
+                              MF_MT_AVG_BITRATE,
+                              pCont[arIndex].video_FrameRateNumerator,
+                              pCont[arIndex].video_FrameRateDenominator);
 
-  // Set the frame size. This size is just a guess, to get the original size you have to call
-  // MFGetAttributeSize from the source
+  // Set the frame size.
   if SUCCEEDED(hr) then
     hr := MFSetAttributeSize(pVideoAttrs,
                              MF_MT_FRAME_SIZE,
@@ -356,10 +398,14 @@ begin
                               pCont[arIndex].video_PixelAspectRatioNumerator,
                               pCont[arIndex].video_PixelAspectRatioDenominator);
 
-  // Set the bit rate. = framerate numerator
+  // Aversge Bitrate = FrameRateNumerator.
+
   if SUCCEEDED(hr) then
     hr := pVideoAttrs.SetUINT32(MF_MT_AVG_BITRATE,
                                 pCont[arIndex].video_FrameRateNumerator);
+
+
+done:
 
   // Set the attribute store on the transcode profile.
   if SUCCEEDED(hr) then
@@ -379,30 +425,31 @@ end;
 //  MFT node in the transcode topology. The MFT node is based on the
 //  stream settings stored in the transcode profile.
 //-------------------------------------------------------------------
-function TTranscoder.ConfigureContainer(): HResult;
+function TTranscoder.ConfigureContainer(const containerType: TGuid): HResult;
 var
   hr: HResult;
   pContainerAttrs: IMFAttributes;
 
 begin
   {$IFDEF DEBUG}
-  assert(m_pProfile <> Nil);
+  assert(m_pProfile <> nil);
   {$ENDIF}
 
   // Set container attributes
-  hr := MFCreateAttributes(pContainerAttrs, 2);
+  hr := MFCreateAttributes(pContainerAttrs,
+                           2);
 
-  // Set the output container to be ASF type
+  // Set the output container to the correct type
   if SUCCEEDED(hr) then
     hr := pContainerAttrs.SetGUID(MF_TRANSCODE_CONTAINERTYPE,
-                                  MFTranscodeContainerType_ASF);
+                                  containerType);
 
-  // Use the default setting. Media Foundation will use the stream
+  // Use the default profile setting. Media Foundation will use the stream
   // settings set in ConfigureAudioOutput and ConfigureVideoOutput.
 
   if SUCCEEDED(hr) then
     hr := pContainerAttrs.SetUINT32(MF_TRANSCODE_ADJUST_PROFILE,
-                                    DWord(MF_TRANSCODE_ADJUST_PROFILE_DEFAULT));
+                                    UINT32(MF_TRANSCODE_ADJUST_PROFILE_DEFAULT));
 
   // Set the attribute store on the transcode profile.
   if SUCCEEDED(hr) then
@@ -418,19 +465,19 @@ end;
 //  Builds the transcode topology based on the input source,
 //  configured transcode profile, and the output container settings.
 //-------------------------------------------------------------------
-function TTranscoder.EncodeToFile(sURL: PWideChar): HResult;
+function TTranscoder.EncodeToFile(aURL: TFileName): HResult;
 var
   hr: HResult;
 
 begin
 
   {$IFDEF DEBUG}
-  assert(m_pSession <> Nil);
-  assert(m_pSource <> Nil);
-  assert(m_pProfile <> Nil);
+  assert(m_pSession <> nil);
+  assert(m_pSource <> nil);
+  assert(m_pProfile <> nil);
   {$ENDIF}
 
-  if Not Assigned(sURL) then
+  if aURL = '' then
     begin
       Result := E_INVALIDARG;
       Exit;
@@ -438,7 +485,7 @@ begin
 
   //Create the transcode topology
   hr := MFCreateTranscodeTopology(m_pSource,
-                                  sURL,
+                                  LPCWSTR(aURL),
                                   m_pProfile,
                                   m_pTopology );
 
@@ -480,7 +527,7 @@ var
 begin
 
   {$IFDEF DEBUG}
-  assert(m_pSession <> Nil);
+  assert(m_pSession <> nil);
   {$ENDIF}
 
   hr := S_OK;
@@ -495,11 +542,15 @@ begin
         begin
           // When using a progressbar, this would be the best place to send a custom progress message.
           // For this you need to implement a message handler in the unit or form where this is going to be processed.
-          if (m_pClock <> Nil) then
+          if (m_pClock <> nil) then
             begin
               {void} m_pClock.GetTime(m_Position);
-              SendMessage(rcHandle, WM_PROGRESSNOTIFY, WParam(1), LParam(0));
+              SendMessage(rcHandle,
+                          WM_PROGRESSNOTIFY,
+                          WParam(1),
+                          LParam(0));
             end;
+          HandleMessages(GetCurrentThread());
         end;
 
       // This is a synchronised operation, so we change the flag to immediate response, instead of waiting for an event in the queue.
@@ -511,35 +562,35 @@ begin
       else
         Break;
 
-      HandleMessages(GetCurrentThread());
-
       if FAILED(hr) then
         if hr = MF_E_NO_EVENTS_AVAILABLE then
           begin
             // continue will skip the rest of this loop, so we have to get the progress update before
             // the eventype will be handled.
-            hr := 0;
-            continue;
+            hr := S_OK;
+            Continue;
           end
         else
           break;
+
 
       // Get the event type.
       hr := pEvent.GetType(meType);
 
       if FAILED(hr) then
-        break;
+        Break;
 
       hr := pEvent.GetStatus(hrStatus);
 
       if FAILED(hr) then
-        break;
+        Break;
 
       if FAILED(hrStatus) then
         begin
-          SetWindowText(rcHandle, LPCWSTR(Format('Failed. %d error condition triggered this event.', [hrStatus])));
+          SendStatusNotify(LPCWSTR(Format('Failed. %d error condition triggered this event.', [hrStatus])));
+
           hr := hrStatus;
-          break;
+          Break;
         end;
 
       case meType of
@@ -547,14 +598,14 @@ begin
                                 hr := Start();
                                 if SUCCEEDED(hr) then
                                   begin
-                                   // We use SetWindowText to display messages in the mainform's caption
-                                   SetWindowText(rcHandle, LPCWSTR('Ready for rendering.'));
+                                   // We use SendMessage to display messages in the mainform's StatusBar.
+                                   SendStatusNotify(LPCWSTR('Ready for rendering.'));
                                   end;
                               end;
 
         MESessionStarted: begin
                             startUpdateProcessing := True;
-                            SetWindowText(rcHandle, LPCWSTR('Rendering is in progress...'));
+                            SendStatusNotify(LPCWSTR('Rendering is in progress...'));
                            end;
 
         MESessionEnded: begin
@@ -562,24 +613,27 @@ begin
                           hr := m_pSession.Close();
                           if SUCCEEDED(hr) then
                             begin
-                              SetWindowText(rcHandle, LPCWSTR('Finished rendering.'));
+                              SendStatusNotify(LPCWSTR('Finished rendering.'));
                             end;
                         end;
 
         MESessionClosed: begin
-                           SetWindowText(rcHandle, LPCWSTR('Output file has been succesfully created.'));
+                           SendStatusNotify(LPCWSTR('Output file has been succesfully created.'));
                          end;
       end;
 
-      if FAILED(hr) then
-        break;
+      HandleMessages(GetCurrentThread());
 
-      pEvent := Nil;
+      if FAILED(hr) then
+        Break;
+
+      pEvent := nil;
+
     end;
 
   // Shutdown() has been called. This code happens when the Transcode process is aborted when running.
   // ie: The user closed the application or aborted the operation while Transcoding is in progress.
-  if hr = MF_E_SHUTDOWN then
+  if (hr = MF_E_SHUTDOWN) then
     hr := E_ABORT;
 
   Result := hr;
@@ -608,7 +662,7 @@ var
 
 begin
   {$IFDEF DEBUG}
-  assert(m_pSession <> Nil);
+  assert(m_pSession <> nil);
   {$ENDIF}
 
   if Assigned(m_pClock) then
@@ -630,7 +684,8 @@ begin
         hr := pClock.QueryInterface(IID_IMFPresentationClock,
                                     m_pClock);
       if Failed(hr) then
-        SetWindowText(rcHandle, LPCWSTR('Could not find a presentation clock!'));
+        SendStatusNotify(LPCWSTR('Could not find a presentation clock!'));
+
 
      end;
 
@@ -639,7 +694,8 @@ begin
   hr := m_pSession.Start(GUID_NULL, varStart);
 
   if FAILED(hr) then
-    SetWindowText(rcHandle, LPCWSTR('Failed to start the session...'));
+    SendStatusNotify(LPCWSTR('Failed to start the session...'));
+
 
   Result := hr;
 end;
@@ -685,7 +741,7 @@ begin
     if hr = MF_E_SHUTDOWN then
       hr := E_ABORT
     else
-      SetWindowText(rcHandle, LPCWSTR('Failed to close the session...'));
+      SendStatusNotify(LPCWSTR('Failed to close the session...'));
 
   Result := hr;
 end;
@@ -706,5 +762,13 @@ begin
           end;
 end;
 
+
+procedure TTranscoder.SendStatusNotify(aStatusMsg: LPCWSTR);
+begin
+  SendMessage(rcHandle,
+              WM_STATUSNOTIFY,
+              WPARAM(0),
+              LPARAM(aStatusMsg));
+end;
 
 end.

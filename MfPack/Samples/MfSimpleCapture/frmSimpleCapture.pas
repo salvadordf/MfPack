@@ -9,7 +9,7 @@
 // Release date: 08-02-2018
 // Language: ENU
 //
-// Revision Version: 3.1.4
+// Revision Version: 3.1.5
 //
 // Description: This is the basic class of MfSimpleCapture,
 //              containing the necessary methodes to capture media streams.
@@ -18,20 +18,20 @@
 // Company: FactoryX
 // Intiator(s): Tony (maXcomX), Peter (OzShips)
 // Contributor(s): Tony Kalf (maXcomX),
-//                 Peter Larson (ozships)
+//                 Peter Larson (ozships),
+//                 Ciaran (Ciaran3)
 //
 //------------------------------------------------------------------------------
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
-// 28/08/2022 All                 PiL release  SDK 10.0.22621.0 (Windows 11)
-// 03/03/2023                     Updated and fixed device notification issues.
+// 20/07/2023 All                 Carmel release  SDK 10.0.22621.0 (Windows 11)
 //------------------------------------------------------------------------------
 //
 // Remarks: Requires Windows 7 or higher.
 //
 // Related objects: -
-// Related projects: MfPackX314
+// Related projects: MfPackX315
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -109,12 +109,15 @@ type
     Button1: TButton;
     butGetDevice: TButton;
     pnlVideo: TPanel;
+    cboRotation: TComboBox;
+    lblRotation: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure FormPaint(Sender: TObject);
     procedure pnlVideoResize(Sender: TObject);
     procedure butGetDeviceClick(Sender: TObject);
     procedure Button1Click(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+    procedure HandleRotationChanged(Sender: TObject);
 
   private
     { Private declarations }
@@ -256,6 +259,11 @@ begin
     end;
 end;
 
+
+procedure TFrm_SimpleCapture.HandleRotationChanged(Sender: TObject);
+begin
+  MfDeviceCapture.Rotation := StrToInt(cboRotation.Text);
+end;
 
 // Message listener
 // Listen for WM_DEVICECHANGE messages. The lParam message parameter is a pointer to a DEV_BROADCAST_HDR structure.
