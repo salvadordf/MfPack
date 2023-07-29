@@ -57,17 +57,18 @@ SDK version: 10.0.22621.0 (Windows 11)
 
 *Supported, but not limited, formats in this sample are:*
 
-*Audio*
-*- MPEG Audio Layer III (mp3)*
-*- Waveform Audio File Format (wav)*
-*- MPEG-4 Audio (m4a)*
-*- Free Lossless Audio Codec (flac)*
+- Audio
+   * Waveform Audio File Format (wav)
+   * MPEG Audio Layer III (mp3)
+   * Free Lossless Audio Codec (flac)
+   * MPEG-4 Audio (m4a)
+   * Windows Media Audio (wma)
 
-*Video
-*- Audio Video Interleave (avi)*
-*- MPEG-4 Video and Audio (mp4)*
-*- Windows Movie (wmv)*
-
+- Video
+   * Audio Video Interleave (avi)
+   * MPEG-4 Video with AAC Audio (mp4)
+   * MPEG-4 Video with Dolby AC-3 Audio (mp4)
+   * Windows Media Video (wmv)
 
 ![](https://github.com/FactoryXCode/MfPack/blob/Master/MfPack/Pic/MfTranscode%20Sample%202.png)
 
@@ -112,7 +113,7 @@ SDK version: 10.0.22621.0 (Windows 11)
 - *MfPlayer II : The extended version I sample.*
 
 - *MfPlayer X : This is an example that shows how to use the IMFTimer, language tags,*  
-               *subtitles (SubRip and MicroDvd), RegEx (Regular Expressions) and how to get media properties.*
+               *subtitles (SubRip, MicroDvd and WebVTT), RegEx (Regular Expressions) and how to get media properties.*
 
 
 ![](https://github.com/FactoryXCode/MfPack/blob/Master/MfPack/Pic/MfMediaPlayer_X.jfif)
