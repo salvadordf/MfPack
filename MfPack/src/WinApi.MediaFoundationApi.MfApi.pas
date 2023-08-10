@@ -1271,7 +1271,7 @@ const
 
   //@@MFSampleExtension_MaxDecodeFrameSize
   /// <summary>
-  // {D3CC654F-F9F3-4A13-889F-F04EB2B5B957} MFSampleExtension_MaxDecodeFrameSize                {UINT64 (HI32(Width),LO32(Height))}
+  // {D3CC654F-F9F3-4A13-889F-F04EB2B5B957} MFSampleExtension_MaxDecodeFrameSize  {UINT64 (HI32(Width),LO32(Height))}
   // specify the maxiumum resolution of compressed input bitstream,
   // the decoder shall decode any comressed pictures below the specified maximum resolution
   // any input compressed pictures beyond the maximum resolution shall not be decoded and dropped by the decoder
@@ -1365,11 +1365,11 @@ const
   // /*
   // The MF blob should be parsed in the way below defined in SliceHeaderSet, with proper verifications
   //
-  // =============================================================================================================
+  // ========================================================================================================
   // Note the slice header data here DO NOT have all bits for all the syntaxes.
   // Some bits are removed on purpose to send out a lossy compressed slice header in order to be 100% secure
-  // The partial slice header data here SHALL not include any bits for emulation prevention byte 0x03
-  // =============================================================================================================
+  // The partial slice header data here SHALL not include any bits for emulation prevention byte $03
+  // ========================================================================================================
   //
   // typedef struct SliceHeader_tag {
   // WORD dSliceHeaderLen;                   // indicate the length of the following slice header in byte, it shall not be more than 1024
@@ -2167,8 +2167,10 @@ const
 
 
 const           // updt 090812 add
-
+  //
   // MFT_CATEGORY
+  //
+  // MFT Registry categories.
   // The following GUIDs define categories for Media Foundation transforms (MFTs).
   // These categories are used to register and enumerate MFTs.
 
@@ -2197,7 +2199,7 @@ const           // updt 090812 add
   {$EXTERNALSYM MFT_CATEGORY_AUDIO_EFFECT}
 
   //#if (WINVER >= _WIN32_WINNT_WIN7)
-  // {302ea3fc-aa5f-47f9-9f7a-c2188bb16302}...MFT_CATEGORY_VIDEO_PROCESSOR
+  // {302ea3fc-aa5f-47f9-9f7a-c2188bb16302}   MFT_CATEGORY_VIDEO_PROCESSOR
   MFT_CATEGORY_VIDEO_PROCESSOR        : TGuid = '{302ea3fc-aa5f-47f9-9f7a-c2188bb16302}'; //updt 090812 correct GUID
   {$EXTERNALSYM MFT_CATEGORY_VIDEO_PROCESSOR}
   //#endif // (WINVER >= _WIN32_WINNT_WIN7)
@@ -2261,7 +2263,7 @@ const
   //================
   //
   // Valid MFT_ENUM_FLAG_ASYNCMFT flags for function MFTRegister
-  // ===========================================================
+  // ==============================
   // The MFT performs asynchronous processing in software. See Asynchronous MFTs.
   // This flag does not apply to hardware transforms.
   // Requires >= Windows 7.
@@ -2399,13 +2401,13 @@ const
   function MFTEnumEx(const guidCategory: TGuid;  // A GUID that specifies the category of MFTs to enumerate. For a list of MFT categories, see MFT_CATEGORY.
                      Flags: UINT32;  // The bitwise OR of zero or more flags from the _MFT_ENUM_FLAG enumeration.
                      pInputType: PMFT_REGISTER_TYPE_INFO; // A pointer to an MFT_REGISTER_TYPE_INFO structure that specifies an input media type to match.
-                                                          // This parameter can be Nil. If Nil, all input types are matched.
+                                                          // This parameter can be nil. If nil, all input types are matched.
                      pOutputType: PMFT_REGISTER_TYPE_INFO;  // A pointer to an MFT_REGISTER_TYPE_INFO structure that specifies an output media type to match.
-                                                            // This parameter can be Nil. If Nil, all output types are matched.
+                                                            // This parameter can be nil. If nil, all output types are matched.
                      out pppMFTActivate: PIMFActivate;  // Receives an array of IMFActivate interface pointers.
                                                         // Each pointer represents an activation object for an MFT that matches the search criteria.
                                                         // The function allocates the memory for the array. The caller must release the pointers and call the
-                                                        // CoTaskMemFree function to free the memory for the array.
+                                                        // CoTaskMemFree function to free the memory used by the array.
 
                      out pnumMFTActivate: UINT32): HResult; stdcall;  // Receives the number of elements in the pppMFTActivate array. If no MFTs match the search criteria, this parameter receives the value zero.
   {$EXTERNALSYM MFTEnumEx}
@@ -2416,10 +2418,11 @@ const
   // In Delphi XE7 CoTaskMemFree does not free the array at once this will result in a pointer error.
   // You need to itterate the array and call CoTaskMemFree for each interface item!
   //
-  // *pppMFTActivate must be released like this when using as global array:
+  // pppMFTActivate must be released like this when using as global array:
   //
-  // Shut down and release the interface pointers.   (Don't use  for _i:= Low() to High() do !!)
-  // for i:= 0 to count -1 do   // count is a returned UINT32 from MFEnumDeviceSources
+  // Shut down and release the interface pointers.   (Don't use  for i := Low() to High() do !!)
+  // {$POINTERMATH ON}
+  // for i := 0 to count -1 do   // count is a returned UINT32 from MFEnumDeviceSources
   //   begin
   //     CoTaskMemFree(pppMFTActivate[i]);
   //    or
@@ -2427,7 +2430,7 @@ const
   //   end;
   //
   // SetLength(pppMFTActivate, 0);
-  //
+  // {$POINTERMATH OFF}
 
 
 
@@ -3269,11 +3272,11 @@ const
   // These audio types are not derived from an existing wFormatTag
   MFAudioFormat_Dolby_AC3       :  TGUID = '{e06d802c-db46-11cf-b4d1-00805f6cbbea}';
   {$EXTERNALSYM MFAudioFormat_Dolby_AC3}
-  // == MEDIASUBTYPE_DOLBY_AC3 defined in ksuuids.h
+  // = MEDIASUBTYPE_DOLBY_AC3 defined in ksuuids.h
 
   MFAudioFormat_Dolby_DDPlus    :  TGUID = '{a7fb87af-2d02-42fb-a4d4-05cd93843bdd}';
   {$EXTERNALSYM MFAudioFormat_Dolby_DDPlus}
-  // == MEDIASUBTYPE_DOLBY_DDPLUS defined in wmcodecdsp.h
+  // = MEDIASUBTYPE_DOLBY_DDPLUS defined in wmcodecdsp.h
 
   // AC-4 bitstream versions 0 and 1.
   // This audio media type is normally used as an alternate media type (the primary being MFAudioFormat_Dolby_AC4)
@@ -3301,11 +3304,11 @@ const
 
   MFAudioFormat_DTS_RAW         :  TGUID = '{E06D8033-DB46-11CF-B4D1-00805F6CBBEA}';
   {$EXTERNALSYM MFAudioFormat_DTS_RAW}
-  // == MEDIASUBTYPE_DTS defined in ksuuids.h
+  // = MEDIASUBTYPE_DTS defined in ksuuids.h
 
   MFAudioFormat_DTS_HD          :  TGUID = '{A2E58EB7-0FA9-48BB-A40C-FA0E156D0645}';
   {$EXTERNALSYM MFAudioFormat_DTS_HD}
-  // == MEDIASUBTYPE_DTS_HD defined in wmcodecdsp.h
+  // = MEDIASUBTYPE_DTS_HD defined in wmcodecdsp.h
 
   MFAudioFormat_DTS_XLL         :  TGUID = '{45B37C1B-8C70-4E59-A7BE-A1E42C81C80D}';
   {$EXTERNALSYM MFAudioFormat_DTS_XLL}
@@ -3334,7 +3337,7 @@ const
   // LPCM audio with headers for encapsulation in an MPEG2 bitstream
   MFAudioFormat_LPCM            :  TGUID = '{e06d8032-db46-11cf-b4d1-00805f6cbbea}';
   {$EXTERNALSYM MFAudioFormat_LPCM}
-  // == MEDIASUBTYPE_LPCM defined in ksmedia.h
+  // = MEDIASUBTYPE_LPCM defined in ksmedia.h
 
   MFAudioFormat_PCM_HDCP        :  TGUID = '{a5e7ff01-8411-4acc-a865-5f4941288d80}';
   {$EXTERNALSYM MFAudioFormat_PCM_HDCP}
@@ -5370,7 +5373,7 @@ const
   // Packs two UINT32 values into a UINT64 value.
   // Returns the packed UINT64 value.
   // Parameters
-  //==========
+  //===========
   // unHigh [in]
   //    Value to store in the high-order 32 bits of the UINT64 value.
   // unLow [in]
@@ -5571,7 +5574,7 @@ const
 
 
   // helpers for getting/setting ratios and sizes //////////////////////////////
-  //============================================================================
+  //======================================
 
 
   // Gets an attribute whose value is two UINT32 values packed into a UINT64.
@@ -6161,7 +6164,7 @@ const
   {$WARN SYMBOL_PLATFORM ON}
 
 // internal functions converted from MACRO'S
-//==========================================
+//=====================
 
 
 //
