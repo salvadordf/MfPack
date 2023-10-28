@@ -22,6 +22,7 @@
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
 // 01/08/2023 All                 Carmel release  SDK 10.0.22621.0 (Windows 11)
+// 12/09/2023 Tony                Fixed some wrong function parameters.
 //------------------------------------------------------------------------------
 //
 // Remarks: -
@@ -523,37 +524,37 @@ const
   PRESENTATION_CURRENT_POSITION = $7FFFFFFFFFFFFFFF;
   {$EXTERNALSYM PRESENTATION_CURRENT_POSITION}
 
-  MF_PD_PMPHOST_CONTEXT                         : TGUID = '{6c990d31-bb8e-477a-8598-0d5d96fcd88a}';
+  MF_PD_PMPHOST_CONTEXT                         : TGUID = '{6c990d31-bb8e-477a-8598-0d5d96fcd88a}';   // IUnknown
   {$EXTERNALSYM MF_PD_PMPHOST_CONTEXT}
-  MF_PD_APP_CONTEXT                             : TGUID = '{6c990d32-bb8e-477a-8598-0d5d96fcd88a}';
+  MF_PD_APP_CONTEXT                             : TGUID = '{6c990d32-bb8e-477a-8598-0d5d96fcd88a}';   // IUnknown
   {$EXTERNALSYM MF_PD_APP_CONTEXT}
 
-  MF_PD_DURATION                                : TGUID = '{6c990d33-bb8e-477a-8598-0d5d96fcd88a}';
+  MF_PD_DURATION                                : TGUID = '{6c990d33-bb8e-477a-8598-0d5d96fcd88a}';   // UINT64
   {$EXTERNALSYM MF_PD_DURATION}
-  MF_PD_TOTAL_FILE_SIZE                         : TGUID = '{6c990d34-bb8e-477a-8598-0d5d96fcd88a}';
+  MF_PD_TOTAL_FILE_SIZE                         : TGUID = '{6c990d34-bb8e-477a-8598-0d5d96fcd88a}';   // UINT64
   {$EXTERNALSYM MF_PD_TOTAL_FILE_SIZE}
-  MF_PD_AUDIO_ENCODING_BITRATE                  : TGUID = '{6c990d35-bb8e-477a-8598-0d5d96fcd88a}';
+  MF_PD_AUDIO_ENCODING_BITRATE                  : TGUID = '{6c990d35-bb8e-477a-8598-0d5d96fcd88a}';   // UINT32
   {$EXTERNALSYM MF_PD_AUDIO_ENCODING_BITRATE}
-  MF_PD_VIDEO_ENCODING_BITRATE                  : TGUID = '{6c990d36-bb8e-477a-8598-0d5d96fcd88a}';
+  MF_PD_VIDEO_ENCODING_BITRATE                  : TGUID = '{6c990d36-bb8e-477a-8598-0d5d96fcd88a}';   // UINT32
   {$EXTERNALSYM MF_PD_VIDEO_ENCODING_BITRATE}
-  MF_PD_MIME_TYPE                               : TGUID = '{6c990d37-bb8e-477a-8598-0d5d96fcd88a}';
+  MF_PD_MIME_TYPE                               : TGUID = '{6c990d37-bb8e-477a-8598-0d5d96fcd88a}';   // Wide-character string
   {$EXTERNALSYM MF_PD_MIME_TYPE}
-  MF_PD_LAST_MODIFIED_TIME                      : TGUID = '{6c990d38-bb8e-477a-8598-0d5d96fcd88a}';
+  MF_PD_LAST_MODIFIED_TIME                      : TGUID = '{6c990d38-bb8e-477a-8598-0d5d96fcd88a}';   // Byte array
   {$EXTERNALSYM MF_PD_LAST_MODIFIED_TIME}
 
 //#if (WINVER >= _WIN32_WINNT_WIN7)
-  MF_PD_PLAYBACK_ELEMENT_ID                     : TGUID = '{6c990d39-bb8e-477a-8598-0d5d96fcd88a}';
+  MF_PD_PLAYBACK_ELEMENT_ID                     : TGUID = '{6c990d39-bb8e-477a-8598-0d5d96fcd88a}';   // UINT32
   {$EXTERNALSYM MF_PD_PLAYBACK_ELEMENT_ID}
-  MF_PD_PREFERRED_LANGUAGE                      : TGUID = '{6c990d3A-bb8e-477a-8598-0d5d96fcd88a}';
+  MF_PD_PREFERRED_LANGUAGE                      : TGUID = '{6c990d3A-bb8e-477a-8598-0d5d96fcd88a}';   // WCHAR
   {$EXTERNALSYM MF_PD_PREFERRED_LANGUAGE}
-  MF_PD_PLAYBACK_BOUNDARY_TIME                  : TGUID = '{6c990d3b-bb8e-477a-8598-0d5d96fcd88a}';
+  MF_PD_PLAYBACK_BOUNDARY_TIME                  : TGUID = '{6c990d3b-bb8e-477a-8598-0d5d96fcd88a}';   // UINT64
   {$EXTERNALSYM MF_PD_PLAYBACK_BOUNDARY_TIME}
-  MF_PD_AUDIO_ISVARIABLEBITRATE                 : TGUID = '{33026ee0-e387-4582-ae0a-34a2ad3baa18}';
+  MF_PD_AUDIO_ISVARIABLEBITRATE                 : TGUID = '{33026ee0-e387-4582-ae0a-34a2ad3baa18}';   // UINT32
   {$EXTERNALSYM MF_PD_AUDIO_ISVARIABLEBITRATE}
 //#endif // (WINVER >= _WIN32_WINNT_WIN7)
 
 //#if (WINVER >= _WIN32_WINNT_WINTHRESHOLD)
-  MF_PD_ADAPTIVE_STREAMING                      : TGUID = '{EA0D5D97-29F9-488B-AE6B-7D6B4136112B}';
+  MF_PD_ADAPTIVE_STREAMING                      : TGUID = '{EA0D5D97-29F9-488B-AE6B-7D6B4136112B}';   // UINT32 (treat as BOOL)
   {$EXTERNALSYM MF_PD_ADAPTIVE_STREAMING}
 //#endif // (WINVER >= _WIN32_WINNT_WINTHRESHOLD)
 
@@ -741,7 +742,7 @@ const
   // MF_TIME_FORMAT_SEGMENT_OFFSET can be used as the pguidTimeFormat argument
   // to IMFMediaSession.Start and IMFMediaSource.Start to indicate that
   // playback should start at a given offset relative to a sequencer element.
-  // The associated PROPVARIANT (TMfPPROPVARIANT) can be created by calling
+  // The associated PROPVARIANT (PROPVARIANT) can be created by calling
   // MFCreateSequencerSegmentOffset.
 
 
@@ -1666,20 +1667,20 @@ type
       function CreateObjectFromURL(const pwszURL: LPCWSTR;
                                    dwFlags: DWord;
                                    pProps: IPropertyStore; // can be nil
-                                   var pObjectType: MF_OBJECT_TYPE;
+                                   pObjectType: MF_OBJECT_TYPE;
                                    out ppObject: IUnknown): HResult; stdcall;
 
       function CreateObjectFromByteStream(pByteStream: IMFByteStream;
                                           const pwszURL: LPCWSTR; // can be nil
                                           dwFlags: DWord;
                                           pProps: IPropertyStore; // can be nil
-                                          var pObjectType: MF_OBJECT_TYPE;
+                                          pObjectType: MF_OBJECT_TYPE;
                                           out ppObject: IUnknown): HResult; stdcall;
 
       function BeginCreateObjectFromURL(const pwszURL: LPCWSTR;
                                         dwFlags: DWord;
                                         pProps: IPropertyStore; // can be nil
-                                        var ppIUnknownCancelCookie: IUnknown;
+                                        ppIUnknownCancelCookie: IUnknown;
                                         pCallback: IMFAsyncCallback;
                                         punkState: IUnknown): HResult; stdcall;
 
@@ -1745,11 +1746,17 @@ type
     ['{3C9B2EB9-86D5-4514-A394-F56664F9F0D8}']
 
       function GetSourceAttributes(out ppAttributes: IMFAttributes): HResult; stdcall;
+      // Gets an attribute store for the media source.
 
       function GetStreamAttributes(const dwStreamIdentifier: DWORD;
                                    out ppAttributes: IMFAttributes): HResult; stdcall;
+      // Gets an attribute store for a stream on the media source.
 
-      function SetD3DManager(var pManager: IUnknown): HResult; stdcall;
+      function SetD3DManager(pManager: IUnknown): HResult; stdcall;
+      // Sets a pointer to the Microsoft DirectX Graphics Infrastructure (DXGI) Device Manager on the media source.
+      // [in] pManager
+      // A pointer to the IUnknown interface of the DXGI Manager.
+      // The media source should query this pointer for the IMFDXGIDeviceManager interface.
 
    end;
   IID_IMFMediaSourceEx = IMFMediaSourceEx;
@@ -2093,8 +2100,8 @@ type
   // Interface IMFVideoRendererEffectControl
   // Configuration interface for Video Renderer Effects
   // ==================================================
-  {$HPPEMIT 'DECLARE_DINTERFACE_TYPE(IMFVideoProcessorControl3);'}
-  {$EXTERNALSYM IMFVideoProcessorControl3}
+  {$HPPEMIT 'DECLARE_DINTERFACE_TYPE(IMFVideoRendererEffectControl);'}
+  {$EXTERNALSYM IMFVideoRendererEffectControl}
   IMFVideoRendererEffectControl = interface(IUnknown)
     ['{604D33D7-CF23-41d5-8224-5BBBB1A87475}']
     // <summary>
@@ -2177,17 +2184,17 @@ type
 
   PMF_TOPOLOGY_TYPE = ^MF_TOPOLOGY_TYPE;
   MF_TOPOLOGY_TYPE                = (
-    MF_TOPOLOGY_OUTPUT_NODE       = 0,   // Output node. Represents a media sink in the topology.
-    MF_TOPOLOGY_SOURCESTREAM_NODE = (MF_TOPOLOGY_OUTPUT_NODE + 1), // Source node. Represents a media stream in the topology.
-    MF_TOPOLOGY_TRANSFORM_NODE    = (MF_TOPOLOGY_SOURCESTREAM_NODE + 1), // Transform node. Represents a Media Foundation Transform (MFT) in the topology.
-    MF_TOPOLOGY_TEE_NODE          = (MF_TOPOLOGY_TRANSFORM_NODE + 1), // Tee node.
+    MF_TOPOLOGY_OUTPUT_NODE       =  0,   // Output node. Represents a media sink in the topology.
+    MF_TOPOLOGY_SOURCESTREAM_NODE =  (MF_TOPOLOGY_OUTPUT_NODE + 1), // Source node. Represents a media stream in the topology.
+    MF_TOPOLOGY_TRANSFORM_NODE    =  (MF_TOPOLOGY_SOURCESTREAM_NODE + 1), // Transform node. Represents a Media Foundation Transform (MFT) in the topology.
+    MF_TOPOLOGY_TEE_NODE          =  (MF_TOPOLOGY_TRANSFORM_NODE + 1), // Tee node.
                                                                       // A tee node does not hold a pointer to an object.
                                                                       // Instead, it represents a fork in the stream.
                                                                       // A tee node has one input and multiple outputs,
                                                                       // and samples from the upstream node are delivered to
                                                                       // all of the downstream nodes.
 
-    MF_TOPOLOGY_MAX               = MAXDWORD // $ffffffff   Reserved.
+    MF_TOPOLOGY_MAX               =  MAXDWORD // $ffffffff   Reserved.
   );
   {$EXTERNALSYM MF_TOPOLOGY_TYPE}
 
