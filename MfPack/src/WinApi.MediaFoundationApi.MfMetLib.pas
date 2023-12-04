@@ -11,10 +11,13 @@
 // Language: ENU
 //
 // Revision Version: 3.1.5
-// Description: This unit contains basic Media Foundation methods needed to play,
+// Description: MfPack Methods Library.
+//              This unit contains basic Media Foundation methods needed to play,
 //              record, encode, decode, etc.
+//              See: https://github.com/FactoryXCode/MfPack/wiki/MfPack-Methods-Library-Index
 //
-// Company: FactoryX
+//
+// Organisation: FactoryX
 // Intiator(s): Tony (maXcomX), Peter (OzShips), Ramyses De Macedo Rodrigues.
 // Contributor(s): Tony Kalf (maXcomX),
 //                 Peter Larson (ozships),
@@ -27,6 +30,7 @@
 // ---------- ------------------- ----------------------------------------------
 // 25/08/2023 All                 Carmel release  SDK 10.0.22621.0 (Windows 11)
 // 29/09/2023                     Added new video functions.
+// 24/11/2023 Tony                Added function CreateTranscodeProfile.
 // -----------------------------------------------------------------------------
 //
 // Remarks: Requires Windows 10 or later.
@@ -41,7 +45,7 @@
 // Todo: -
 //
 // =============================================================================
-// Source: Parts of examples from MSDN.
+// Source: Parts and examples from learn.microsoft.com.
 //
 // Copyright (c) Microsoft Corporation. All rights reserved.
 //==============================================================================
@@ -318,7 +322,6 @@ type
     public
       procedure Reset();
   end;
-
 
   // MFT CATEGORIES
   TMftCategory = record
@@ -643,6 +646,11 @@ type
   // If the stream is not compressed, pCLSID receives the value GUID_NULL.
   function FindDecoderForStream(pSD: IMFStreamDescriptor;      // Stream descriptor for the stream.
                                 out opCLSID: CLSID): HResult;  // Receives the CLSID of the decoder.
+
+  // Creates a transcode profile for the given params mfAudioFormat and mfTranscodeContainerType.
+  function CreateTranscodeProfile({in} mfAudioFormat: TGUID;  // For example: MFAudioFormat_WMAudioV9
+                                  {in} mfTranscodeContainerType: TGUID; // For example: MFTranscodeContainerType_ASF
+                                  out ppProfile: IMFTranscodeProfile): HResult;
 
   // Configures the recordsink for video.
   function ConfigureVideoEncoding(pSource: IMFCaptureSource;
@@ -1002,6 +1010,12 @@ type
 ////////////////////////////////////////////////////////////////////////////////
 
 
+  // Dumps the media buffer contents of an IMFSample to a stream.
+  // [in] pSample: pointer to the media sample to dump the contents from.
+  // [in] pStream: pointer to the stream to write to.
+  function WriteSampleToStream(pSample: IMFSample;
+                               pStream: TMemoryStream): HResult;
+
   // Gets metadata from a media source or other object.
   // If a media source supports this interface, it must expose the interface as a service.
   // To get a pointer to this interface from a media source, call IMFGetService.GetService.
@@ -1027,6 +1041,14 @@ type
   function GetMediaType(pStreamDesc: IMFStreamDescriptor;
                         out tgMajorGuid: TGuid;
                         out bIsCompressedFormat: BOOL): HResult;
+
+  // Returns a matching MediaType interface.
+  function FindMatchingVideoType(pMediaTypeHandler: IMFMediaTypeHandler;
+                                 const gPixelFormat: TGUID;
+                                 pWidth: UINT32;
+                                 pHeight: UINT32;
+                                 pFps: UINT32;
+                                 out pOutMediaType: IMFMediaType): HResult;
 
   // Check if a given guid is a major type.
   function IsMajorType(const guid: TGuid): Boolean;
@@ -5922,7 +5944,7 @@ begin
 
   bPanScan := MFGetAttributeUINT32(pType,
                                    MF_MT_PAN_SCAN_ENABLED,
-                                   {false} UINT32(0));
+                                   {False} UINT32(0));
 
   // In pan-and-scan mode, try to get the pan-and-scan region.
   if (bPanScan <> 0) then
@@ -6089,6 +6111,50 @@ begin
           lLeft + iDstLBWidth,
           lTop + iDstLBHeight);
   Result := rc;
+end;
+
+
+// Dumps the media buffer contents of an IMF sample to a stream.
+// [in] pSample: pointer to the media sample to dump the contents from.
+// [in] pStream: pointer to the stream to write to.
+function WriteSampleToStream(pSample: IMFSample;
+                             pStream: TMemoryStream): HResult;
+var
+  hr: HResult;
+  strres: LongInt;
+  MediaBuffer: IMFMediaBuffer;
+  BufferLength: DWORD;
+  ByteBuffer: PByte;
+  BufferMaxLength: DWORD;
+  BufferCurrLength: DWORD;
+
+label
+  done;
+
+begin
+  strres := 0;
+
+  hr := pSample.ConvertToContiguousBuffer(MediaBuffer);
+
+  if SUCCEEDED(hr) then
+    hr := MediaBuffer.GetCurrentLength(BufferLength);
+
+  if SUCCEEDED(hr) then
+    begin
+      BufferMaxLength := 0;
+      BufferCurrLength := 0;
+      hr := MediaBuffer.Lock(ByteBuffer,
+                             @BufferMaxLength,
+                             @BufferCurrLength);
+    end;
+  if SUCCEEDED(hr) then
+    strres := pStream.Write(ByteBuffer,
+                            BufferLength);
+  if (strres = 0) then
+    hr := E_FAIL;
+
+done:
+  Result := hr;
 end;
 
 
@@ -6403,6 +6469,77 @@ begin
         end;
    end;
  Result := hr;
+end;
+
+
+//
+function FindMatchingVideoType(pMediaTypeHandler: IMFMediaTypeHandler;
+                               const gPixelFormat: TGUID;
+                               pWidth: UINT32;
+                               pHeight: UINT32;
+                               pFps: UINT32;
+                               out pOutMediaType: IMFMediaType): HResult;
+var
+  hr: HResult;
+  i: Integer;
+  pMediaType: IMFMediaType;
+  mediaTypeCount: DWORD;
+  subType: TGUID;
+  uWidth: UINT32;
+  uHeigth: UINT32;
+  uFpsNumerator: UINT32;
+  uFpsDenominator: UINT32;
+
+label
+  done;
+
+begin
+  hr := pMediaTypeHandler.GetMediaTypeCount(mediaTypeCount);
+
+  if SUCCEEDED(hr) then
+    for i := 0 to mediaTypeCount -1 do
+      begin
+        hr := pMediaTypeHandler.GetMediaTypeByIndex(i,
+                                                    pMediaType);
+
+        if SUCCEEDED(hr) then
+          hr := pMediaType.GetGUID(MF_MT_SUBTYPE,
+                                   subType);
+
+        if SUCCEEDED(hr) then
+          hr := MFGetAttributeSize(pMediaType,
+                                   MF_MT_FRAME_SIZE,
+                                   uWidth,
+                                   uHeigth);
+
+        if SUCCEEDED(hr) then
+          hr := MFGetAttributeRatio(pMediaType,
+                                    MF_MT_FRAME_RATE,
+                                    uFpsNumerator,
+                                    uFpsDenominator);
+
+        if SUCCEEDED(hr) then
+          if (IsEqualGUID(gPixelFormat,
+                          subType)) and
+             (uWidth = pWidth) and
+             (uHeigth = pHeight) and
+             (pFps = uFpsNumerator) and
+             (uFpsDenominator = 1) then
+            begin
+              hr := pMediaType.CopyAllItems(pOutMediaType);
+
+              if SUCCEEDED(hr) then
+                begin
+                  Safe_Release(pMediaType);
+                  hr := S_OK;
+                  Break;
+                end;
+            end
+          else
+            Safe_Release(pMediaType);
+      end;
+done:
+  Result := hr;
 end;
 
 
@@ -7316,6 +7453,97 @@ begin
   audio_iSamplesPerSec := 0;
   audio_iBitsPerSample := 0;
   audio_dwFormatTag := 0;
+end;
+
+
+// Creates a transcode profile for the given params mfAudioFormat and mfTranscodeContainerType.
+function CreateTranscodeProfile({in} mfAudioFormat: TGUID;  // For example: MFAudioFormat_WMAudioV9
+                                {in} mfTranscodeContainerType: TGUID; // For example: MFTranscodeContainerType_ASF
+                                out ppProfile: IMFTranscodeProfile): HResult;
+var
+  hr: HResult;
+  pProfile: IMFTranscodeProfile;   // Transcode profile.
+  pAvailableTypes: IMFCollection;  // List of audio media types.
+  pAudioType: IMFMediaType;        // Audio media type.
+  pAudioAttrs: IMFAttributes;      // Copy of the audio media type.
+  pContainer: IMFAttributes;       // Container attributes.
+  dwMTCount: DWORD;
+  dwFlags: DWORD;
+
+label
+  done;
+
+begin
+
+  // Create an empty transcode profile.
+  hr := MFCreateTranscodeProfile(pProfile);
+  if FAILED(hr) then
+    goto done;
+
+  // Get output media types for the Windows Media audio encoder.
+
+  // Enumerate all codecs except for codecs with field-of-use restrictions.
+  // Sort the results.
+  dwFlags := (MFT_ENUM_FLAG_ALL and not MFT_ENUM_FLAG_FIELDOFUSE) or
+             MFT_ENUM_FLAG_SORTANDFILTER;
+
+  hr := MFTranscodeGetAudioOutputAvailableTypes(mfAudioFormat,
+                                                dwFlags,
+                                                nil,
+                                                pAvailableTypes);
+  if FAILED(hr) then
+    goto done;
+
+  hr := pAvailableTypes.GetElementCount(dwMTCount);
+  if FAILED(hr) then
+    goto done;
+
+  if (dwMTCount = 0) then
+    begin
+      hr := E_FAIL;
+      goto done;
+    end;
+
+  // Get the first audio type in the collection and make a copy.
+  hr := GetCollectionObject(pAvailableTypes,
+                            0,
+                            pAudioType);
+  if FAILED(hr) then
+    goto done;
+
+  hr := MFCreateAttributes(pAudioAttrs,
+                           0);
+  if FAILED(hr) then
+    goto done;
+
+  hr := pAudioType.CopyAllItems(pAudioAttrs);
+  if FAILED(hr) then
+    goto done;
+
+  // Set the audio attributes on the profile.
+  hr := pProfile.SetAudioAttributes(pAudioAttrs);
+  if FAILED(hr) then
+    goto done;
+
+  // Set the container attributes.
+  hr := MFCreateAttributes(pContainer,
+                           1);
+  if FAILED(hr) then
+    goto done;
+
+  hr := pContainer.SetGUID(MF_TRANSCODE_CONTAINERTYPE,
+                           mfTranscodeContainerType);
+  if FAILED(hr) then
+    goto done;
+
+  hr := pProfile.SetContainerAttributes(pContainer);
+  if FAILED(hr) then
+    goto done;
+
+  ppProfile := pProfile;
+
+done:
+  Result := hr;
 end;
 
 
