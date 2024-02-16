@@ -5,7 +5,7 @@
 // Project: MfPack - Shared
 // Project location: https://sourceforge.net/projects/MFPack
 //                   https://github.com/FactoryXCode/MfPack
-// Module: WinApi.MediaFoundation.MfVideoStandardsCheat.pas
+// Module: WinApi.MfPack.VideoStandardsCheat.pas
 // Kind: Pascal / Delphi unit
 // Release date: 14-11-2023
 // Language: ENU
@@ -68,7 +68,7 @@
 // their product.
 //
 //==============================================================================
-unit WinApi.MediaFoundation.MfVideoStandardsCheat;
+unit WinApi.MfPack.VideoStandardsCheat;
 
 
 interface
@@ -193,6 +193,7 @@ const
   // String
   s4_3   = '4:3';
   s5_3   = '5:3';
+  s16_10 = '16:10';
   s16_9  = '16:9';
   s21_9  = '21:9';
   s64_27 = '64:27';
@@ -208,6 +209,7 @@ const
   // Double
   r4_3   = 1.33; // 4:3
   r5_3   = 1.66; // 5:3
+  r16_10 = 1.60; // 16:10
   r16_9  = 1.78; // 16:9
   r1_85  = 1.85;
   r1_90  = 1.90;
@@ -226,7 +228,7 @@ const
 
 begin
   SetLength(aResolutionArray,
-            140);
+            141);
   iCounter := 0;
 
   // 8K
@@ -407,6 +409,7 @@ begin
 
   SetRes(rRes, rWidth, 1440, r4_3, 4, 3, s4_3, '');
   SetRes(rRes, rWidth, 1152, r5_3, 5, 3, s5_3, '');
+  SetRes(rRes, rWidth, 1080, r16_10, 16, 10, s16_10, '');
   SetRes(rRes, rWidth, 1080, r16_9, 16, 9, s16_9, '');
   SetRes(rRes, rWidth, 1036, r1_85, r1_85, 1, s1_85, Cinema_Flat);
   SetRes(rRes, rWidth, 1010, r1_90, r1_90, 1, s1_90, '');
@@ -460,7 +463,6 @@ begin
   SetRes(rRes, 720, 486, r4_3, 4, 3, s4_3, 'NTSC DV 0.91 Pixel Aspect Ratio SD');
   SetRes(rRes, 864, 486, r16_9, 16, 9, s16_9, 'Square Pixels 1.0 HD');
   SetRes(rRes, 720, 486, r16_9, 16, 9, s16_9, 'NTSC DV Widescreen 1.21 Pixel Aspect Ratio HD');
-
 
 end;
 
