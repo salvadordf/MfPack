@@ -28,7 +28,7 @@
 
 # MfPack 
 
-Version X 3.1.5
+Version X 3.1.6
 Delphi XE2 up to and including Delphi 12 
 SDK version: 10.0.22621.0 (Windows 11)
 
@@ -163,6 +163,10 @@ SDK version: 10.0.22621.0 (Windows 11)
 *Example 2 demonstrates how to use the SinkWriter to create a video from one or more bitmap files.*
   
  ![](https://github.com/FactoryXCode/MfPack/blob/Master/MfPack/Pic/SinkWriterSample.png)
+
+*Example 3 demonstrates how to use the SinkWriter to create a video from one or more image files including audio.*
+ ![](https://github.com/FactoryXCode/MfPack/blob/Master/MfPack/Pic/ImageToVideo_3.jpg)
+
 
 **LoopBackCapture Sample 1**
 
