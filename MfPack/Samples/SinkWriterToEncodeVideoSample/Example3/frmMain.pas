@@ -147,20 +147,14 @@ type
     lblCodecInfo: TLabel;
     Label17: TLabel;
     Panel5: TPanel;
-    WriteSlideshow: TButton;
+    butRenderSlideshow: TButton;
     Background: TCheckBox;
     CropLandscape: TCheckBox;
     ZoomInOut: TCheckBox;
     DebugTiming: TCheckBox;
-    Label11: TLabel;
-    Bevel1: TBevel;
     Bevel3: TBevel;
     StaticText1: TStaticText;
-    StaticText2: TStaticText;
-    mmoAudioCodecDescr: TMemo;
-    Label21: TLabel;
     StaticText3: TStaticText;
-    chbxAddAudio: TCheckBox;
     edLocation: TEdit;
     ShowVideo: TButton;
     pnlSelectPics: TPanel;
@@ -169,7 +163,7 @@ type
     DriveComboBox1: TDriveComboBox;
     Splitter1: TSplitter;
     Panel2: TPanel;
-    ImageCount: TLabel;
+    lblImageCount: TLabel;
     lbxFileBox: TCheckListBox;
     Panel3: TPanel;
     lblRenderingOrder: TLabel;
@@ -182,8 +176,6 @@ type
     Bevel4: TBevel;
     Label22: TLabel;
     spedEffectDuration: TSpinEdit;
-    spedImageDuration: TSpinEdit;
-    Label2: TLabel;
     Bevel5: TBevel;
     Bevel6: TBevel;
     cbxPickWinFolder: TComboBox;
@@ -192,17 +184,26 @@ type
     pbPreview: TProgressBar;
     StaticText4: TStaticText;
     StaticText5: TStaticText;
-    pnlInclAudio: TPanel;
-    Label12: TLabel;
-    AudioStartTime: TSpinEdit;
-    cbxSetPresentationDuration: TCheckBox;
     Bevel2: TBevel;
+    spedCompensation: TSpinEdit;
+    Label3: TLabel;
+    pnlInclAudio: TPanel;
     Label19: TLabel;
     cbxAudioCodec: TComboBox;
+    Label21: TLabel;
+    mmoAudioCodecDescr: TMemo;
+    chbxAddAudio: TCheckBox;
+    lblAudioSource: TLabel;
+    AudioStartTime: TSpinEdit;
+    Label12: TLabel;
+    cbxSetPresentationDuration: TCheckBox;
+    Label2: TLabel;
+    spedImageDuration: TSpinEdit;
+    Label4: TLabel;
+    Label5: TLabel;
 
     procedure FormCreate(Sender: TObject);
-    procedure FormDestroy(Sender: TObject);
-    procedure WriteSlideshowClick(Sender: TObject);
+    procedure butRenderSlideshowClick(Sender: TObject);
     procedure FileExtChange(Sender: TObject);
     procedure CodecsChange(Sender: TObject);
     procedure ShowVideoClick(Sender: TObject);
@@ -228,11 +229,13 @@ type
     procedure cbxPickWinFolderChange(Sender: TObject);
     procedure butRunPreviewClick(Sender: TObject);
     procedure edLocationClick(Sender: TObject);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 
   private
     ImageRenderer: TImageRenderer;
     fFileList: TStringlist;
     fSelectedFilesList: TStringList;
+    fImageFiles: TStringlist;
 
     myPicturesPath: string;
     fOutputFile: string;
@@ -249,10 +252,9 @@ type
     iSelectedAudioFormat: Integer;
     fSelectedAudioFormat: TMFAudioFormat;
     sAudioCodecDescr: string;
+    fAudioFileName: TFileName;
     llAudioDuration: LONGLONG;
-
-    //
-    iPicturePresentationTime: Int64;
+    iPicturePresentationTime: LONGLONG;
 
     // Opens selected Windows folder.
     procedure OpenFolder(fldrindex: Integer);
@@ -260,11 +262,12 @@ type
 
     function GetOutputFileName: string;
 
+    function CalculatePicturePresentationTime(): Int64;
+
     // Procedure showing the use of TBitmapEncoder
     procedure MakeSlideshow(aFiles: TStringlist;
                             const aWicImage: TWicImage;
                             const aBitmapImage: TBitmap;
-                            //const aBitmapEncoder: TBitmapEncoder;
                             var aDone: Boolean;
                             aThreaded: Boolean);
 
@@ -485,7 +488,7 @@ begin
       Exit;
     end;
   cbxPickWinFolder.ItemIndex := 0;
-  cbxPickWinFolderChange(Self);
+  cbxPickWinFolderChange(nil);
   AllowChange := True;
 end;
 
@@ -503,18 +506,40 @@ begin
 end;
 
 
-procedure TfrmMain.WriteSlideshowClick(Sender: TObject);
+function TfrmMain.CalculatePicturePresentationTime(): Int64;
+var
+  i: Integer;
+  //slImageFiles: TStringlist;
+  Latency: DWord;
+begin
+  fImageFiles := TStringlist.Create;
+
+    for i := 0 to fSelectedFilesList.Count - 1 do
+      fImageFiles.Add(fSelectedFilesList.Strings[i]);
+
+    if (fImageFiles.Count = 0) then
+      begin
+        ShowMessage('No image files selected!');
+        Result := 0;
+        Exit;
+      end;
+
+  // The video decoder/encoder and the audio codec produces a latency depending on the in and output format.
+  // So, we use an average latency of about 0.030 ms pultiplied by the number of images.
+  Latency := spedCompensation.Value * fImageFiles.Count;
+  Result := Trunc((llAudioDuration / fImageFiles.Count) / 10000) - Latency;
+
+end;
+
+
+procedure TfrmMain.butRenderSlideshowClick(Sender: TObject);
 var
   hr: HResult;
   Bitmap: TBitmap;
   WicImage: TWicImage;
   StopWatch: TStopWatch;
   Task: ITask;
-  Done: Boolean;
-  slImageFiles: TStringlist;
-  sAudioFileName: TFileName;
-  i: Integer;
-
+  bDone: Boolean;
 
 begin
 
@@ -530,39 +555,14 @@ begin
       Exit;
     end;
 
-  sAudioFileName := '';
-
-  if AudioDialog then
-    begin
-      sAudioFileName := GetAudioFile();
-      // Get the length of the audiofile.
-      if FAILED(GetFileDuration(StrToPWideChar(sAudioFileName),
-                                llAudioDuration)) then
-        begin
-          ShowMessage('Could not retrieve the duration of the audio file.');
-          llAudioDuration := 0;
-          iPicturePresentationTime := spedImageDuration.Value; // default = 4 sec.
-          cbxSetPresentationDuration.Checked := False;
-        end;
-    end;
-
   bWriting := True;
 
-  // Use a local stringlist because of threading
-  slImageFiles := TStringlist.Create;
-
   try
-    for i := 0 to fSelectedFilesList.Count - 1 do
-      slImageFiles.Add(fSelectedFilesList.Strings[i]);
-
-    if (slImageFiles.Count = 0) then
-      begin
-        ShowMessage('No image files selected!');
-        Exit;
-      end
-    else  // Set presentation of the video to duration of the audio.
+    // Set presentation of the video to duration of the audio.
       if cbxSetPresentationDuration.Checked then
-        iPicturePresentationTime := Trunc((llAudioDuration / slImageFiles.Count) / 10000) - 1500
+        begin
+          iPicturePresentationTime := CalculatePicturePresentationTime();
+        end
       else  // Default
         iPicturePresentationTime := spedImageDuration.Value; // Default = 4 sec.
 
@@ -573,7 +573,7 @@ begin
     StopWatch := TStopWatch.Create();
 
     try
-      stbStatus.SimpleText := 'Rendering...';
+      stbStatus.SimpleText := 'Preparing the renderer, please wait... ';
       StopWatch.Start;
 
       hr := ImageRenderer.Initialize(OutputFileName,
@@ -583,7 +583,7 @@ begin
                                      cfBicubic,
                                      iPicturePresentationTime,
                                      llAudioDuration,
-                                     sAudioFileName,
+                                     fAudioFileName,
                                      AudioStart);
 
       if FAILED(hr) then
@@ -595,21 +595,20 @@ begin
           Exit;
         end;
 
-
       ImageRenderer.TimingDebug := DebugTiming.Checked;
 
       if Background.Checked then
         begin
-          Done := false;
+          bDone := false;
           Task := TTask.Run(procedure
                               begin
-                                MakeSlideshow(slImageFiles,
+                                MakeSlideshow(fImageFiles,
                                               WicImage,
                                               Bitmap,
-                                              Done,
+                                              bDone,
                                               True);
                               end);
-          while not Done do
+          while not bDone do
             begin
               HandleThreadMessages(GetCurrentThread());
             end;
@@ -619,10 +618,10 @@ begin
         end
       else
         begin
-          MakeSlideshow(slImageFiles,
+          MakeSlideshow(fImageFiles,
                         WicImage,
                         Bitmap,
-                        Done,
+                        bDone,
                         False);
         end;
 
@@ -643,7 +642,7 @@ begin
       ImageRenderer.Free;
     end;
   finally
-    slImageFiles.Free;
+    FreeAndNil(fImageFiles);
     bWriting := False;
   end;
 end;
@@ -695,6 +694,7 @@ begin
       dlbDir.Directory := mypicturespath;
       dlbDir.Refresh;
     end;
+  path := nil;
 end;
 
 
@@ -716,7 +716,8 @@ end;
 // Run preview
 procedure TfrmMain.butRunPreviewClick(Sender: TObject);
 var
-  i, j: Integer;
+  i: Integer;
+  j: Integer;
 
 begin
   if (lbxRenderingOrder.Count = 0) then
@@ -735,18 +736,25 @@ begin
           if EndsText(lbxRenderingOrder.Items[i],
                       fFileList.Strings[j]) then
             begin
+              // Load the image.
               imgPreview.Picture.LoadFromFile(fFileList.Strings[j]);
-              //Application.ProcessMessages;
+              Application.ProcessMessages;
               pbPreview.Position := i + 1;
-              //Application.ProcessMessages;
-              //Sleep(spedImageDuration.Value);
-              HandleThreadMessages(GetCurrentThread(),
-                                   spedImageDuration.Value);
+              Application.ProcessMessages;
+              // Get the image presentation duration.
+              if cbxSetPresentationDuration.Checked then
+                Sleep(CalculatePicturePresentationTime())
+              else
+                Sleep(spedImageDuration.Value);
+              // clear image (effect duration)
+              imgPreview.Picture.Assign(nil);
+              Application.ProcessMessages;
+              Sleep(spedEffectDuration.Value);
               Break;
             end;
         end;
-
     end;
+  pbPreview.Position := 0;
 end;
 
 
@@ -759,15 +767,17 @@ label
 begin
 
   iSelectedAudioFormat := 0;
-  {
-  listed in control's property Items.
-  ===================================
-  Advanced Audio Coding (AAC)
-  Free Lossless Audio Codec (FLAC)
-  }
+
+  // listed in control's property Items.
+  // ===================================
+  // Advanced Audio Coding (AAC)
+  // Free Lossless Audio Codec (FLAC)
+  // Dolby AC-3 (AC-3)
+
   case cbxAudioCodec.ItemIndex of
     1: gAudioCodec := MFAudioFormat_AAC;
     2: gAudioCodec := MFAudioFormat_FLAC;
+    3: gAudioCodec := MFAudioFormat_Dolby_AC3;
     else
       goto done;
   end;
@@ -789,7 +799,7 @@ begin
   if (iSelectedAudioFormat > 0) then
     begin
       mmoAudioCodecDescr.Clear();
-      for i := 0 to AudioFormatDlg.fAudioCodecDescription.Count -1 do
+      for i := 0 to AudioFormatDlg.fAudioCodecDescription.Count - 1 do
         mmoAudioCodecDescr.Lines.Append(AudioFormatDlg.fAudioCodecDescription.Strings[i]);
       mmoAudioCodecDescr.SelStart := 0;
       mmoAudioCodecDescr.SelLength := 1;
@@ -800,8 +810,35 @@ done:
     begin
       ShowMessage('You did not select a valid audio format!');
       cbxAudioCodec.ItemIndex := 0;
+    end
+  else
+    begin
+      // Select an audiofile.
+      if AudioDialog then
+        begin
+          fAudioFileName := GetAudioFile();
+          if (fAudioFileName = 'No file selected.') then
+            begin
+              lblAudioSource.Caption := fAudioFileName;
+              Exit;
+            end
+          else
+            lblAudioSource.Caption := fAudioFileName;
+          // Get the length of the audiofile.
+          if FAILED(GetFileDuration(StrToPWideChar(fAudioFileName),
+                                    llAudioDuration)) then
+            begin
+              ShowMessage('Could not retrieve the duration of the audio file.');
+              llAudioDuration := 0;
+              iPicturePresentationTime := spedImageDuration.Value; // default = 4 sec.
+              cbxSetPresentationDuration.Checked := False;
+            end;
+        end
+      else
+        Exit;
     end;
 end;
+
 
 procedure TfrmMain.cbxFileFormatChange(Sender: TObject);
 var
@@ -977,6 +1014,27 @@ begin
 end;
 
 
+procedure TfrmMain.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+begin
+  CanClose := False;
+  if Assigned(fFileList) then
+    FreeAndNil(fFileList);
+
+  if Assigned(fSelectedFilesList) then
+    FreeAndNil(fSelectedFilesList);
+
+  if Assigned(fImageFiles) then
+    FreeAndNil(fImageFiles);
+
+  if Assigned(fFramebm) then
+    fFramebm.Free;
+
+  if Assigned(fVideoStandardsCheat) then
+    FreeAndNil(fVideoStandardsCheat);
+  CanClose := True;
+end;
+
+
 procedure TfrmMain.FormCreate(Sender: TObject);
 var
   i: integer;
@@ -999,15 +1057,6 @@ begin
   GetResolutions();
   GetFramerates();
   Randomize;
-end;
-
-
-procedure TfrmMain.FormDestroy(Sender: TObject);
-begin
-  fFileList.Free;
-  fSelectedFilesList.Free;
-  fFramebm.Free;
-  fVideoStandardsCheat.Free();
 end;
 
 
@@ -1039,7 +1088,7 @@ end;
 
 procedure TfrmMain.SetResolution();
 begin
-  // store current resolution
+  // Store current resolution.
   fVideoStandardsCheat.SetResolutionByIndex(cbxResolution.ItemIndex);
   iVideoWidth := fVideoStandardsCheat.SelectedResolution.iWidth;
   iVideoHeight := fVideoStandardsCheat.SelectedResolution.iHeight;
@@ -1070,7 +1119,7 @@ end;
 
 function TfrmMain.GetAudioFile(): string;
 begin
-  Result := '';
+  Result := 'No audiofile selected.';
   fodSelectAudio.FileName := '';
   if not fodSelectAudio.Execute(Handle) then
     Exit;
@@ -1121,6 +1170,7 @@ procedure TfrmMain.lbxFileBoxClickCheck(Sender: TObject);
 var
   i: Integer;
   n: Integer;
+  selTxt: string;
 
 begin
   n := 0;
@@ -1129,9 +1179,13 @@ begin
     if lbxFileBox.Checked[i] then
       Inc(n);
 
-  ImageCount.Caption := Format('%d %s',
-                               [n,
-                                'images selected (bmp, jpg, png, gif)']);
+  if (n = 1)  then
+    selTxt := 'image'
+  else
+    selTxt := 'images';
+
+  lblImageCount.Caption := Format('Selected %d %s',
+                                  [n, selTxt]);
 
   // Add or remove checked file to rendering order.
   if lbxFileBox.Checked[lbxFileBox.ItemIndex] then
@@ -1233,15 +1287,15 @@ end;
 
 
 initialization
-
+  // A gui app should always use COINIT_APARTMENTTHREADED in stead of COINIT_MULTITHREADED!
   CoInitializeEx(nil,
-                 COINIT_MULTITHREADED {COINIT_APARTMENTTHREADED});
+                COINIT_APARTMENTTHREADED);
 
   if FAILED(MFStartup(MF_VERSION,
                       MFSTARTUP_FULL)) then
       begin
         MessageBox(0,
-                   lpcwstr('Your computer does not support this Media Foundation API version' +
+                   lpcwstr('Your computer does not support this Media Foundation API version ' +
                            IntToStr(MF_VERSION) + '.'),
                    lpcwstr('MFStartup Failure!'),
                            MB_ICONSTOP);

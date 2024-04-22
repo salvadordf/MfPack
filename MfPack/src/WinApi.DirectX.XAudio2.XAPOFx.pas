@@ -69,8 +69,8 @@ interface
 uses
 
   {WinApi}
-  WinApi.Windows;
-
+  WinApi.Windows,
+  System.classes;
   {$WEAKPACKAGEUNIT ON}
 
   {$I 'XAudio2.inc'}
@@ -243,7 +243,7 @@ type
   {$EXTERNALSYM FXECHO_INITDATA}
 
 
-  // Echo parameters, used with IXAPOParameters::SetParameters:
+  // Echo parameters, used with IXAPOParameters.SetParameters:
   // The echo supports only FLOAT32 audio formats.
   PFXECHO_PARAMETERS = ^FXECHO_PARAMETERS;
   FXECHO_PARAMETERS = record
@@ -272,7 +272,7 @@ type
   //  Use IXAudio2.CreateSourceVoice or IXAudio2Voice.SetEffectChain to pass an XAPO to XAudio2.
   function CreateFX(const clsid: TGuid;
                     out pEffect: IUnknown;
-                    pInitData: Pointer = nil;
+                    const pInitData: Pointer = nil;
                     InitDataByteSize: UINT32 = 0): HRESULT; stdcall;
   {$EXTERNALSYM CreateFX}
 

@@ -1,6 +1,7 @@
 program ImagesToVideo;
 
 uses
+
   Vcl.Forms,
   ImageRenderer in 'ImageRenderer.pas',
   frmMain in 'frmMain.pas' {FfrmMain},
@@ -13,6 +14,10 @@ uses
 {$R *.res}
 
 begin
+  {$IFDEF DEBUG}
+  {$WARN SYMBOL_PLATFORM OFF}
+  ReportMemoryLeaksOnShutdown := True;
+  {$ENDIF}
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
   Application.CreateForm(TfrmMain, FfrmMain);

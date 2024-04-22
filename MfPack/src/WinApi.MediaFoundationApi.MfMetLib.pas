@@ -1165,6 +1165,10 @@ type
   function GetFileDuration(pSource: IMFSourceReader;
                            out phnsDuration: LONGLONG): HResult; overload;
 
+  // Same as above, but returns MFTIME.
+  function GetFileDuration(pSourceReader: IMFSourceReader;
+                           out mftDuration: MFTIME): HResult; overload;
+
   // Alternatively you might get the duration of a media file by calling the IMFMediaSource.CreatePresentationDescriptor method and
   // request the MF_PD_DURATION attribute.
   function GetFileDuration(pSource: IMFMediaSource;
@@ -1173,6 +1177,10 @@ type
   // Get fileduration from an URL.
   function GetFileDuration(const sURL: PCWSTR;
                            out pDuration: LONGLONG): HResult; overload;
+
+  // Get fileduration in MFTIME units from an URL.
+  function GetFileDuration(const sURL: PCWSTR;
+                           out pDuration: MFTIME): HResult; overload;
 
 
   // Gets the file size.
@@ -6545,75 +6553,74 @@ try
       hr := pspd.GetStreamDescriptorCount(sdCount);
       if SUCCEEDED(hr) then
         SetLength(alsCont,
-                  sdCount)
-      else
-        Exit;
+                  sdCount);
 
-      for i := 0 to sdCount - 1 do
-        begin
-           // Initialize the record
-           alsCont[i].Reset();
+      if SUCCEEDED(hr) then
+        for i := 0 to sdCount - 1 do
+          begin
+             // Initialize the record
+             alsCont[i].Reset();
 
-           // Store the stream index
-           alsCont[i].dwStreamIndex := i;
+             // Store the stream index
+             alsCont[i].dwStreamIndex := i;
 
-          // Get stream descriptor interface
-          hr := pspd.GetStreamDescriptorByIndex(i,                    // Zero-based index of the stream.
-                                                alsCont[i].bSelected, // TRUE if the stream is currently selected, FALSE if the stream is currently deselected.
-                                                pSourceSD);           // Receives a pointer to the stream descriptor's IMFStreamDescriptor interface. The caller must release the interface.
+            // Get stream descriptor interface
+            hr := pspd.GetStreamDescriptorByIndex(i,                    // Zero-based index of the stream.
+                                                  alsCont[i].bSelected, // TRUE if the stream is currently selected, FALSE if the stream is currently deselected.
+                                                  pSourceSD);           // Receives a pointer to the stream descriptor's IMFStreamDescriptor interface. The caller must release the interface.
 
-          // Store the streamID
-          if SUCCEEDED(hr) then
-            pSourceSD.GetStreamIdentifier(alsCont[i].dwStreamId);
+            // Store the streamID
+            if SUCCEEDED(hr) then
+              pSourceSD.GetStreamIdentifier(alsCont[i].dwStreamId);
 
-          // Get the media major type
-          if SUCCEEDED(hr) then
-            hr := GetMediaType(pSourceSD,
-                               alsCont[i].idStreamMajorTypeGuid,
-                               alsCont[i].bCompressed);
-
-
-          // Figure out what media type we are dealing with
-          if SUCCEEDED(hr) then
-            hr := GetMediaDescription(alsCont[i].idStreamMajorTypeGuid,
-                                      alsCont[i].idStreamMediaType);
+            // Get the media major type
+            if SUCCEEDED(hr) then
+              hr := GetMediaType(pSourceSD,
+                                 alsCont[i].idStreamMajorTypeGuid,
+                                 alsCont[i].bCompressed);
 
 
-          // If audio stream then try to get the language of this stream
-          if SUCCEEDED(hr) and (alsCont[i].idStreamMediaType = mtAudio) then
-            begin
-
-              // Get the audio format type and qualities
-              hr := GetAudioSubType(mSource,
-                                    alsCont[i].idStreamSubTypeGuid,
-                                    alsCont[i].audio_dwFormatTag,
-                                    alsCont[i].audio_wsAudioDescr,
-                                    alsCont[i].audio_iAudioChannels,
-                                    alsCont[i].audio_iSamplesPerSec,
-                                    alsCont[i].audio_iBitsPerSample,
-                                    alsCont[i].audio_iblockAlignment,
-                                    alsCont[i].audio_AverageSampleRate,
-                                    alsCont[i].audio_BitRate_kbps,
-                                    alsCont[i].audio_SampleRate_khz);
+            // Figure out what media type we are dealing with
+            if SUCCEEDED(hr) then
+              hr := GetMediaDescription(alsCont[i].idStreamMajorTypeGuid,
+                                        alsCont[i].idStreamMediaType);
 
 
-              // Retrieves a wide-character string associated with a key (MF_SD_LANGUAGE).
-              // This method allocates the memory for the string.
-              // A returnvalue of -1072875802 / $C00D36E6
-              // (The requested attribute was not found.) is returned when no language information was found.
-              hr := pSourceSD.GetAllocatedString(MF_SD_LANGUAGE,
-                                                 pwszValue,
-                                                 pcchLength);
+            // If audio stream then try to get the language of this stream
+            if SUCCEEDED(hr) and (alsCont[i].idStreamMediaType = mtAudio) then
+              begin
+
+                // Get the audio format type and qualities
+                hr := GetAudioSubType(mSource,
+                                      alsCont[i].idStreamSubTypeGuid,
+                                      alsCont[i].audio_dwFormatTag,
+                                      alsCont[i].audio_wsAudioDescr,
+                                      alsCont[i].audio_iAudioChannels,
+                                      alsCont[i].audio_iSamplesPerSec,
+                                      alsCont[i].audio_iBitsPerSample,
+                                      alsCont[i].audio_iblockAlignment,
+                                      alsCont[i].audio_AverageSampleRate,
+                                      alsCont[i].audio_BitRate_kbps,
+                                      alsCont[i].audio_SampleRate_khz);
 
 
-              if SUCCEEDED(hr) then
-                alsCont[i].audio_lpLangShortName := pwszValue
-              else
-                begin
-                  alsCont[i].audio_lpLangShortName := 'Not available';
-                  hr := S_OK;
-                end;
-            end;
+                // Retrieves a wide-character string associated with a key (MF_SD_LANGUAGE).
+                // This method allocates the memory for the string.
+                // A returnvalue of -1072875802 / $C00D36E6
+                // (The requested attribute was not found.) is returned when no language information was found.
+                hr := pSourceSD.GetAllocatedString(MF_SD_LANGUAGE,
+                                                   pwszValue,
+                                                   pcchLength);
+
+
+                if SUCCEEDED(hr) then
+                  alsCont[i].audio_lpLangShortName := pwszValue
+                else
+                  begin
+                    alsCont[i].audio_lpLangShortName := 'Not available';
+                    hr := S_OK;
+                  end;
+              end;
 
           pwszValue := nil;
           pcchLength := 0;
@@ -7714,6 +7721,31 @@ begin
 end;
 
 
+function GetFileDuration(pSourceReader: IMFSourceReader;
+                         out mftDuration: MFTIME): HResult; overload;
+var
+  hr: HResult;
+  pvVar: PROPVARIANT;
+
+begin
+  PropVariantInit(pvVar);
+
+  // Get file duration
+  // Gets the duration in 100-nanosecond units.
+  // Divide by 10,000,000 to get the duration in seconds.
+  hr := pSourceReader.GetPresentationAttribute(MF_SOURCE_READER_MEDIASOURCE,
+                                               MF_PD_DURATION,
+                                               pvVar);
+  if SUCCEEDED(hr) then
+    hr := PropVariantToUInt64(pvVar,
+                              mftDuration);
+
+  PropVariantClear(pvVar);
+  Result := hr;
+end;
+
+
+
 // Alternatively you might get the duration of a media file by calling the IMFMediaSource.CreatePresentationDescriptor method and
 // request the MF_PD_DURATION attribute, as shown in the following code.
 function GetFileDuration(pSource: IMFMediaSource;
@@ -7755,6 +7787,32 @@ begin
   if SUCCEEDED(hr) then
     hr := pPD.GetUINT64(MF_PD_DURATION,
                         UINT64(pDuration));
+
+  Result := hr;
+end;
+
+
+// Get fileduration in MFTIME units from an URL.
+function GetFileDuration(const sURL: PCWSTR;
+                         out pDuration: MFTIME): HResult; overload;
+var
+  hr: HResult;
+  pSource: IMFMediaSource;
+  pPD: IMFPresentationDescriptor;
+
+begin
+  pDuration := 0;
+  // Create a mediasource by given URL.
+  hr := CreateObjectFromUrl(sURL,
+                            pSource);
+
+  // Get the duration of a media file by calling the IMFMediaSource.CreatePresentationDescriptor method
+  if SUCCEEDED(hr) then
+    hr := pSource.CreatePresentationDescriptor(pPD);
+
+  if SUCCEEDED(hr) then
+    hr := pPD.GetUINT64(MF_PD_DURATION,
+                        pDuration);
 
   Result := hr;
 end;

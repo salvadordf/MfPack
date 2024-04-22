@@ -71,19 +71,28 @@ uses
   {WinApi}
   WinApi.Windows,
   WinApi.WinApiTypes,
+  System.Classes,
   {WinMM}
   WinApi.WinMM.MMReg,
   {CoreAudioApi}
   WinApi.CoreAudioApi.AudioSessionTypes;
 
+  // Define this unit to be compiled for Win 10 and 11.
+  // Please check the settings in XAudio2.inc.
+  //
+  // For debug purposes only.
+  // {$DEFINE _WINNT_WIN10}
+  // {$UNDEFINE _WINNT_WIN10}
+
   {$WEAKPACKAGEUNIT ON}
   {$MINENUMSIZE 4}
 
-  {$IFDEF WIN32}
-    {$ALIGN 1}
-  {$ELSE}
-    {$ALIGN 8} // Win64
-  {$ENDIF}
+ // See below at line 107.
+ // {$IFDEF WIN32}
+ //   {$ALIGN 1}
+ // {$ELSE}
+ //   {$ALIGN 8} // Win64
+ // {$ENDIF}
 
   {$I 'XAudio2.inc'}   // CHECK FOR DLL SPECS HERE!
 
@@ -191,13 +200,13 @@ const
   {$EXTERNALSYM XAUDIO2_VOICE_NOSRC}
   XAUDIO2_VOICE_USEFILTER             = $0008;   // Used in IXAudio2.CreateSource/SubmixVoice
   {$EXTERNALSYM XAUDIO2_VOICE_USEFILTER}
-  XAUDIO2_PLAY_TAILS                  = $0020;   // Used in IXAudio2SourceVoice::Stop
+  XAUDIO2_PLAY_TAILS                  = $0020;   // Used in IXAudio2SourceVoice.Stop
   {$EXTERNALSYM XAUDIO2_PLAY_TAILS}
   XAUDIO2_END_OF_STREAM               = $0040;   // Used in XAUDIO2_BUFFER.Flags
   {$EXTERNALSYM XAUDIO2_END_OF_STREAM}
   XAUDIO2_SEND_USEFILTER              = $0080;   // Used in XAUDIO2_SEND_DESCRIPTOR.Flags
   {$EXTERNALSYM XAUDIO2_SEND_USEFILTER}
-  XAUDIO2_VOICE_NOSAMPLESPLAYED       = $0100;   // Used in IXAudio2SourceVoice::GetState
+  XAUDIO2_VOICE_NOSAMPLESPLAYED       = $0100;   // Used in IXAudio2SourceVoice.GetState
   {$EXTERNALSYM XAUDIO2_VOICE_NOSAMPLESPLAYED}
   XAUDIO2_STOP_ENGINE_WHEN_IDLE       = $2000;   // Used in XAudio2Create to force the engine to Stop when no source voices are Started, and Start when a voice is Started
   {$EXTERNALSYM XAUDIO2_STOP_ENGINE_WHEN_IDLE}
@@ -439,7 +448,7 @@ type
   end;
   {$EXTERNALSYM XAUDIO2_EFFECT_CHAIN}
 
-  // Declared at line 123 !
+  // Declared at line 107 !
   //=======================
   // Used in XAUDIO2_FILTER_PARAMETERS below
 //typedef enum XAUDIO2_FILTER_TYPE
@@ -508,14 +517,14 @@ type
   {$EXTERNALSYM XAUDIO2_VOICE_STATE}
   XAUDIO2_VOICE_STATE = record
     pCurrentBufferContext: Pointer;  // The pContext value provided in the XAUDIO2_BUFFER
-                                     //  that is currently being processed, or NULL if
+                                     //  that is currently being processed, or nil if
                                      //  there are no buffers in the queue.
     BuffersQueued: UINT32;           // Number of buffers currently queued on the voice
                                      //  (including the one that is being processed).
     SamplesPlayed: UINT64;           // Total number of samples produced by the voice since
                                      //  it began processing the current audio stream.
                                      //  If XAUDIO2_VOICE_NOSAMPLESPLAYED is specified
-                                     //  in the call to IXAudio2SourceVoice::GetState,
+                                     //  in the call to IXAudio2SourceVoice.GetState,
                                      //  this member will not be calculated, saving CPU.
   end;
 
@@ -575,7 +584,7 @@ type
   {$HPPEMIT 'DECLARE_DINTERFACE_TYPE(IXAudio2);'}
   {$EXTERNALSYM IXAudio2}
   IXAudio2 = interface(IUnknown)
-{$IFDEF _WINNT_WIN10}
+{$IFDEF _WINNT_WIN10}  // This directive is defined in XAudio2.inc.
     ['{2B02E3CF-2E0B-4ec3-BE45-1B2A3FE7210D}']  // XAudio2 v 2.9
 {$ELSE}
     ['{60d8dac8-5aa1-4e8e-b597-2f5e2883d484}']  // XAudio2 v 2.8
@@ -608,12 +617,12 @@ type
     //  pSendList - Optional list of voices this voice should send audio to.
     //  pEffectChain - Optional list of effects to apply to the audio data.
     //
-    function CreateSourceVoice(out ppSourceVoice: IXAudio2SourceVoice;
+    function CreateSourceVoice({out} ppSourceVoice: PIXAudio2SourceVoice;
                                pSourceFormat: PWAVEFORMATEX;
                                Flags: UINT32 = 0;
                                MaxFrequencyRatio: Single = XAUDIO2_DEFAULT_FREQ_RATIO;
                                pCallback: IXAudio2VoiceCallback = nil;
-                               pSendList: PXAUDIO2_VOICE_SENDS = nil;
+                               {in/out} pSendList: PXAUDIO2_VOICE_SENDS = nil;
                                pEffectChain: PXAUDIO2_EFFECT_CHAIN = nil): HRESULT; stdcall;
 
     // NAME: IXAudio2.CreateSubmixVoice
@@ -628,12 +637,12 @@ type
     //  pSendList - Optional list of voices this voice should send audio to.
     //  pEffectChain - Optional list of effects to apply to the audio data.
     //
-    function CreateSubmixVoice(out ppSubmixVoice: IXAudio2SubmixVoice;
+    function CreateSubmixVoice({out} ppSubmixVoice: PIXAudio2SubmixVoice;
                                InputChannels: UINT32;
                                InputSampleRate: UINT32;
                                Flags: UINT32 = 0;
                                ProcessingStage: UINT32 = 0;
-                               pSendList: PXAUDIO2_VOICE_SENDS = nil;
+                               {in/out} pSendList: PXAUDIO2_VOICE_SENDS = nil;
                                pEffectChain: PXAUDIO2_EFFECT_CHAIN = nil): HRESULT; stdcall;
 
 
@@ -649,7 +658,7 @@ type
     //  pEffectChain - Optional list of effects to apply to the audio data.
     //  StreamCategory - The audio stream category to use for this mastering voice
     //
-    function CreateMasteringVoice(out ppMasteringVoice: IXAudio2MasteringVoice;
+    function CreateMasteringVoice({out} ppMasteringVoice: PIXAudio2MasteringVoice;
                                   InputChannels: UINT32 = XAUDIO2_DEFAULT_CHANNELS;
                                   InputSampleRate: UINT32 = XAUDIO2_DEFAULT_SAMPLERATE;
                                   Flags: UINT32 = 0;
@@ -674,7 +683,7 @@ type
     // ARGUMENTS:
     //  OperationSet - Identifier of the set of operations to be applied.
     //
-    function CommitChanges(OperationSet: UINT32): HRESULT; stdcall;
+    function CommitChanges(OperationSet: UINT32 = XAUDIO2_COMMIT_ALL): HRESULT; stdcall;
 
     // NAME: IXAudio2.GetPerformanceData
     // DESCRIPTION: Returns current resource usage details: memory, CPU, etc.
@@ -747,6 +756,8 @@ type
   // Delphi, Note: As you can see, this class is defined as interface in C++ with the DECLARE_INTERFACE macro.
   //               However, this is not the case: This 'interface' is a pure virtual base class rather than an
   //               interface and NOT derived from IUnknown!
+  //               note that this class contains virtual methods.
+  //               The class must be defined as class(TInterfacedObject).
 
   IXAudio2Voice = class(TInterfacedObject)
 
@@ -779,7 +790,7 @@ type
     //  EffectIndex - Index of an effect within this voice's effect chain.
     //  OperationSet - Used to identify this call as part of a deferred batch.
     function EnableEffect(EffectIndex: UINT32;
-                          OperationSet: UINT32): HRESULT; virtual; stdcall; abstract;
+                          OperationSet: UINT32 = XAUDIO2_COMMIT_NOW): HRESULT; virtual; stdcall; abstract;
 
     // NAME: IXAudio2Voice.DisableEffect
     // DESCRIPTION: Disables an effect in this voice's effect chain.
@@ -788,7 +799,7 @@ type
     //  EffectIndex - Index of an effect within this voice's effect chain.
     //  OperationSet - Used to identify this call as part of a deferred batch.
     function DisableEffect(EffectIndex: UINT32;
-                           OperationSet: UINT32): HRESULT; virtual; stdcall; abstract;
+                           OperationSet: UINT32 = XAUDIO2_COMMIT_NOW): HRESULT; virtual; stdcall; abstract;
 
     // NAME: IXAudio2Voice.GetEffectState
     // DESCRIPTION: Returns the running state of an effect.
@@ -815,7 +826,7 @@ type
     function SetEffectParameters(EffectIndex: UINT32;
                                  pParameters: Pointer;
                                  ParametersByteSize: UINT32;
-                                 OperationSet: UINT32): HRESULT; virtual; stdcall; abstract;
+                                 OperationSet: UINT32 = XAUDIO2_COMMIT_NOW): HRESULT; virtual; stdcall; abstract;
 
     // NAME: IXAudio2Voice.GetEffectParameters
     // DESCRIPTION: Obtains the current effect-specific parameters.
@@ -835,7 +846,7 @@ type
     //  pParameters - Pointer to the filter's parameter structure.
     //  OperationSet - Used to identify this call as part of a deferred batch.
     function SetFilterParameters(pParameters: PXAUDIO2_FILTER_PARAMETERS;
-                                 OperationSet: UINT32): HRESULT; virtual; stdcall; abstract;
+                                 OperationSet: UINT32 = XAUDIO2_COMMIT_NOW): HRESULT; virtual; stdcall; abstract;
 
     // NAME: IXAudio2Voice.GetFilterParameters
     // DESCRIPTION: Returns this voice's current filter parameters.
@@ -853,7 +864,7 @@ type
     //  OperationSet - Used to identify this call as part of a deferred batch.
     function SetOutputFilterParameters(pDestinationVoice: IXAudio2Voice;
                                        pParameters: XAUDIO2_FILTER_PARAMETERS;
-                                       OperationSet: UINT32): HRESULT; virtual; stdcall; abstract;
+                                       OperationSet: UINT32 = XAUDIO2_COMMIT_NOW): HRESULT; virtual; stdcall; abstract;
 
     // NAME: IXAudio2Voice.GetOutputFilterParameters
     // DESCRIPTION: Returns the filter parameters from one of this voice's sends.
@@ -871,7 +882,7 @@ type
     //  Volume - New overall volume level to be used, as an amplitude factor.
     //  OperationSet - Used to identify this call as part of a deferred batch.
     function SetVolume(Volume: Single;
-                       OperationSet: UINT32): HRESULT; virtual; stdcall; abstract;
+                       OperationSet: UINT32 = XAUDIO2_COMMIT_NOW): HRESULT; virtual; stdcall; abstract;
 
     // NAME: IXAudio2Voice.GetVolume
     // DESCRIPTION: Obtains this voice's current overall volume level.
@@ -889,7 +900,7 @@ type
     //  OperationSet - Used to identify this call as part of a deferred batch.
     function SetChannelVolumes(Channels: UINT32;
                                pVolumes: PSingle;
-                               OperationSet: UINT32): HRESULT; virtual; stdcall; abstract;
+                               OperationSet: UINT32 = XAUDIO2_COMMIT_NOW): HRESULT; virtual; stdcall; abstract;
 
     // NAME: IXAudio2Voice.GetChannelVolumes
     // DESCRIPTION: Returns this voice's current per-channel volume levels.
@@ -932,7 +943,7 @@ type
                              SourceChannels: UINT32;
                              DestinationChannels: UINT32;
                              pLevelMatrix: PSingle;
-                             OperationSet: UINT32): HRESULT; virtual; stdcall; abstract;
+                             OperationSet: UINT32 = XAUDIO2_COMMIT_NOW): HRESULT; virtual; stdcall; abstract;
 
     // NAME: IXAudio2Voice.GetOutputMatrix
     // DESCRIPTION: Obtains the volume levels used to send each channel of this
@@ -966,12 +977,17 @@ type
   *
   **************************************************************************)
 
+  // Delphi, Note: As you can see, this class is defined as interface in C++ with the DECLARE_INTERFACE macro.
+  //               However, this is not the case: This 'interface' is a pure virtual base class rather than an
+  //               interface and NOT derived from IUnknown!
+  //               Note that this class contains virtual methods.
+  //               The class must be defined as class(TInterfacedObject).
+
   IXAudio2SourceVoice = class(IXAudio2Voice)
 
     // Methods from IXAudio2Voice base interface
 
     // Declare_IXAudio2Voice_Methods();
-
 
     // NAME: IXAudio2SourceVoice.Start
     // DESCRIPTION: Makes this voice start consuming and processing audio.
@@ -1072,6 +1088,10 @@ type
   * IXAudio2SubmixVoice: Submixing voice management interface.
   *
   **************************************************************************)
+  // Delphi, Note: As you can see, this class is defined as interface in C++ with the DECLARE_INTERFACE macro.
+  //               However, this is not the case: This 'interface' is a pure virtual base class rather than an
+  //               interface and NOT derived from IUnknown!
+  //               Note that this class contains virtual methods.
 
   IXAudio2SubmixVoice = class(IXAudio2Voice)
     // Methods from IXAudio2Voice base interface
@@ -1090,6 +1110,10 @@ type
   * IXAudio2MasteringVoice: Mastering voice management interface.
   *
   **************************************************************************)
+  // Delphi, Note: As you can see, this class is defined as interface in C++ with the DECLARE_INTERFACE macro.
+  //               However, this is not the case: This 'interface' is a pure virtual base class rather than an
+  //               interface and NOT derived from IUnknown!
+  //               Note that this class contains virtual methods.
 
   IXAudio2MasteringVoice = class(IXAudio2Voice)
     // Methods from IXAudio2Voice base interface
@@ -1112,6 +1136,12 @@ type
   (**************************************************************************
   *
   * IXAudio2EngineCallback: Client notification interface for engine events.
+  *
+  * Delphi, Note: As you can see, this class is defined as interface in C++ with the DECLARE_INTERFACE macro.
+  *               However, this is not the case: This 'interface' is a pure virtual base class rather than an
+  *               interface and NOT derived from IUnknown!
+  *               Note that this class contains virtual methods.
+  *               The class must be defined as class(TInterfacedObject).
   *
   * REMARKS: Contains methods to notify the client when certain events happen
   *          in the XAudio2 engine.  This interface should be implemented by
@@ -1141,10 +1171,15 @@ type
   (**************************************************************************
   *
   * IXAudio2VoiceCallback: Client notification interface for voice events.
+  * Delphi, Note: As you can see, this class is defined as interface in C++ with the DECLARE_INTERFACE macro.
+  *               However, this is not the case: This 'interface' is a pure virtual base class rather than an
+  *               interface and NOT derived from IUnknown!
+  *               Note that this class contains virtual methods.
+  *               The class must be defined as class(TInterfacedObject).
   *
   * REMARKS: Contains methods to notify the client when certain events happen
-  *          in an XAudio2 voice.  This interface should be implemented by the
-  *          client.  XAudio2 will call these methods via an interface pointer
+  *          in an XAudio2 voice. This interface should be implemented by the
+  *          client. XAudio2 will call these methods via an interface pointer
   *          provided by the client in the IXAudio2.CreateSourceVoice call.
   *
   **************************************************************************)
@@ -1162,14 +1197,14 @@ type
     procedure OnStreamEnd(); virtual; stdcall; abstract;
 
     // Called when this voice is about to start processing a new buffer.
-    procedure OnBufferStart(pBufferContext: pointer); virtual; stdcall; abstract;
+    procedure OnBufferStart(pBufferContext: Pointer); virtual; stdcall; abstract;
 
     // Called when this voice has just finished processing a buffer.
     // The buffer can now be reused or destroyed.
-    procedure OnBufferEnd(pBufferContext: pointer); virtual; stdcall; abstract;
+    procedure OnBufferEnd(pBufferContext: Pointer); virtual; stdcall; abstract;
 
     // Called when this voice has just reached the end position of a loop.
-    procedure OnLoopEnd(pBufferContext: pointer); virtual; stdcall; abstract;
+    procedure OnLoopEnd(pBufferContext: Pointer); virtual; stdcall; abstract;
 
     // Called in the event of a critical error during voice processing,
     // such as a failing xAPO or an error from the hardware XMA decoder.
@@ -1203,9 +1238,9 @@ type
   *
   **************************************************************************)
 
-  function XAudio2Create(out ppXAudio2: IXAudio2;
+  function XAudio2Create({out} ppXAudio2: PIXAudio2;
                          Flags: UINT32 = 0;
-                         XAudio2Processor: XAUDIO2_PROCESSOR = XAUDIO2_DEFAULT_PROCESSOR): HResult; stdcall;
+                         XAudio2Processor: XAUDIO2_PROCESSOR = XAUDIO2_USE_DEFAULT_PROCESSOR): HResult; stdcall;
   {$EXTERNALSYM XAudio2Create}
 
   //#if (NTDDI_VERSION >= NTDDI_WIN10_RS5)
@@ -1363,6 +1398,6 @@ end;
 
 // end XAUDIO2_HELPER_FUNCTIONS
 
-//Implement Additional Prototypes here.
+// Implement Additional Prototypes here.
 
 end.

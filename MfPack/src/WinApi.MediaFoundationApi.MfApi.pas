@@ -132,7 +132,7 @@ type
 const
   MF_SDK_VERSION                      = $0002;
   {$EXTERNALSYM MF_SDK_VERSION}
-  MF_API_VERSION                      = $0070;  // This value is unused in the Win7 release and left at its Vista release value
+  MF_API_VERSION                      = $0070;  // This value is unused in the Win7 release and left at its Vista release value.
   {$EXTERNALSYM MF_API_VERSION}
   MF_VERSION                          = (MF_SDK_VERSION shl 16 or MF_API_VERSION);
   {$EXTERNALSYM MF_VERSION}
@@ -4726,7 +4726,7 @@ const
 
   // Converts a Media Foundation audio media type to a WAVEFORMATEX structure.
   function MFCreateWaveFormatExFromMFMediaType(pMFType: IMFMediaType; // Pointer to the IMFMediaType interface of the media type.
-                                               {out} ppWF: PWAVEFORMATEX; // Receives a pointer to the WAVEFORMATEX structure. The caller must release the memory allocated for the structure by calling CoTaskMemFree.
+                                               out ppWF: PWAVEFORMATEX; // Receives a pointer to the WAVEFORMATEX structure. The caller must release the memory allocated for the structure by calling CoTaskMemFree.
                                                out pcbSize: UINT32; // Receives the size of the WAVEFORMATEX structure.
                                                Flags: UINT32 = 0): HResult; stdcall; // Contains a flag from the MFWaveFormatExConvertFlags enumeration.
   {$EXTERNALSYM MFCreateWaveFormatExFromMFMediaType}
