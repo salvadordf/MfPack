@@ -107,6 +107,7 @@ uses
   {DirectX}
   WinApi.DirectX.DxVa2Api,
   {WinMM}
+  WinApi.WinMM.MMeApi,
   WinApi.WinMM.MMReg,
   {MediaFoundationApi}
   WinApi.MediaFoundationApi.MfUtils,
@@ -1241,7 +1242,12 @@ const
 // Misc
 // ====
 procedure CopyWaveFormatEx(const SourceFmt: WAVEFORMATEX;
-                           out DestFmt: PWAVEFORMATEX);
+                           out DestFmt: PWAVEFORMATEX); inline;
+
+// Returns 16 - bit PCM format.
+function GetDefaultWaveFmtEx(): WAVEFORMATEX; inline;
+
+
 
 // Get the assignment of audio channels to speaker positions and name, from a given MF_MT_AUDIO_CHANNEL_MASK attribute.
 procedure GetSpeakersLayOut(const ChannelMatrix: UINT32;
@@ -5355,30 +5361,24 @@ label
   done;
 
 begin
+
+  returnValue := nil;
+
   hr := DeviceCollection.Item(DeviceIndex,
                                 device);
   if FAILED(hr) then
-    begin
-      Result := nil;
-      goto done;
-    end;
+    goto done;
 
   hr := device.GetId(deviceId);
   if FAILED(hr) then
-    begin
-      Result := nil;
-      goto done;
-    end;
+    goto done;
 
   hr := device.OpenPropertyStore($00000000, // STGM_READ
                                  propertyStore);
   SafeRelease(device);
 
   if FAILED(hr) then
-    begin
-      Result := nil;
-      goto done;
-    end;
+    goto done;
 
   PropVariantInit(friendlyName);
 
@@ -5388,10 +5388,7 @@ begin
   SafeRelease(propertyStore);
 
   if FAILED(hr) then
-    begin
-      Result := nil;
-      goto done;
-    end;
+    goto done;
 
   if (friendlyName.vt <> VT_LPWSTR) then
     deviceName := 'Unknown'
@@ -8380,7 +8377,7 @@ end;
 
 
 procedure CopyWaveFormatEx(const SourceFmt: WAVEFORMATEX;
-                           out DestFmt: PWAVEFORMATEX);
+                           out DestFmt: PWAVEFORMATEX); inline;
 begin
   // Allocate memory for DestFormat
   GetMem(DestFmt,
@@ -8393,6 +8390,17 @@ begin
 
   // User is responsible to free the memory occupied by the result.
   // Like: FreeMem(DestFmt);
+end;
+
+
+function GetDefaultWaveFmtEx(): WAVEFORMATEX;
+begin
+  Result.wFormatTag      := WAVE_FORMAT_PCM;
+  Result.nChannels       := 2;
+  Result.nSamplesPerSec  := 44100;
+  Result.wBitsPerSample  := 16;
+  Result.nBlockAlign     := (Result.nChannels * Result.wBitsPerSample) div 8;
+  Result.nAvgBytesPerSec := Result.nBlockAlign * Result.nSamplesPerSec;
 end;
 
 

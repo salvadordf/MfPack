@@ -73,6 +73,7 @@ uses
   {System}
   System.SysUtils,
   System.Classes,
+  System.Diagnostics,
   {Vcl}
   Vcl.Controls,
   Vcl.Forms,
@@ -83,12 +84,14 @@ uses
   {CoreAudioApi}
   WinApi.MediaFoundationApi.MfApi,
   WinApi.CoreAudioApi.MMDeviceApi,
+  WinApi.MediaFoundationApi.MfUtils,
   {CoreAudioApi}
   WinApi.CoreAudioApi.AudioClient,
   {Application}
   WasapiLoopback,
   Utils,
-  dlgDevices;
+  dlgDevices,
+  UniThreadTimer;
 
 
 type
@@ -116,6 +119,8 @@ type
     Bevel1: TBevel;
     lblStatus: TLabel;
     butResetEngine: TButton;
+    lblCaptureBufferDuration: TLabel;
+    cbxAutoBufferSize: TCheckBox;
     procedure FormCreate(Sender: TObject);
     procedure butStartClick(Sender: TObject);
     procedure butStopClick(Sender: TObject);
@@ -127,33 +132,39 @@ type
     procedure rbConsoleMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure butResetEngineClick(Sender: TObject);
+    procedure cbxAutoBufferSizeClick(Sender: TObject);
+    procedure edFileNameKeyUp(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
 
   private
     { Private declarations }
-    oAudioSink: TAudioSink;
-    iTotalBytesProcessed: Int64;
-    sFileName: string;
-    oDataFlow: EDataFlow;
-    oRole: ERole;
-    oBufferDuration: REFERENCE_TIME;
+    prAudioSink: TAudioSink;
+    prFileName: string;
+    prEdited: Boolean;
+    prDataFlow: EDataFlow;
+    prRole: ERole;
+    prBufferDuration: REFERENCE_TIME;
+
+    // We use timers here, to prevent distortions when quering the capturethread for timing and processed data.
+    // The timer must be set to 1 millisecond resolution.
+    thrTimer: TUniThreadedTimer;
+    aStopWatch: TStopwatch;
+    BufferDurationCaptionSet: Boolean;
 
     procedure EnablePanels(aEnabled: Boolean);
 
-    ///
     procedure CreateNewAudioSink();
     procedure RemoveAudioSink();
-
     function StartCapture(): HResult;
 
     // Event handlers.
     procedure OnCapturingStoppedEvent(Sender: TObject);
-    procedure OnAudioSinkProgressEvent(Sender: TObject);
+    procedure OnTimer(Sender: TObject);
 
     procedure SetBufferDuration();
 
   public
     { Public declarations }
-
 
   end;
 
@@ -165,12 +176,10 @@ implementation
 
 {$R *.dfm}
 
-uses
-  WinApi.MediaFoundationApi.MfUtils;
-
 
 procedure TfrmLoopBackCapture.EnablePanels(aEnabled: Boolean);
 begin
+
   Panel1.Enabled := aEnabled;
   Panel2.Enabled := aEnabled;
   Panel3.Enabled := aEnabled;
@@ -183,19 +192,25 @@ var
   errorStatus: HResult;
 
 begin
-  if not Assigned(oAudioSink) then
+  if not Assigned(prAudioSink) then
     Exit;
 
-  errorStatus := oAudioSink.ErrorStatus;
+  // Stop the timer and stopwatch.
+  thrTimer.Enabled := False;
+  aStopWatch.Stop;
+  aStopWatch.Reset;
+
+  errorStatus := prAudioSink.ErrorStatus;
 
   if (errorStatus = S_OK) or (errorStatus = HResult(AUDCLNT_E_OUT_OF_ORDER)) then
     begin
-      lblStatus.Caption := Format('Capturing stopped. Captured %f Mb.', [iTotalBytesProcessed / (1000 * 1000)]);
+      lblStatus.Caption := Format('Capturing stopped. Captured %f Mb.',
+                                  [prAudioSink.BytesWritten / (1000 * 1000)]);
       butPlayData.Enabled := True;
     end
   else if (errorStatus <> S_OK) then
     begin
-      lblStatus.Caption := Format('Capturing stopped because of an error (hr = %d). Captured %s bytes.', [errorStatus, iTotalBytesProcessed.ToString()]);
+      lblStatus.Caption := Format('Capturing stopped because of an error (hr = %d).', [errorStatus]);
       butPlayData.Enabled := False;
     end;
 
@@ -208,70 +223,32 @@ end;
 procedure TfrmLoopBackCapture.rbConsoleMouseUp(Sender: TObject;
   Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
+
   lblStatus.Caption := 'Start Capture';
 end;
 
-// Helper.
-function BytesToTimeStr(pBytesWritten: Int64;
-                        pSampleRate: Integer;
-                        pChannels: Integer;
-                        pBitsPerSecond: Integer;
-                        pShowMilliSeconds: Boolean = True): string; inline;
-const
-  Bit32 = 4;
-  Bit16 = 2;
 
-var
-  hns: Int64;
-
+procedure TfrmLoopBackCapture.OnTimer(sender: TObject);
 begin
 
-  // Calculate time in 100-nanosecond units.
-  if (pBitsPerSecond = 16) then
-    hns := Trunc((pBytesWritten / (pSampleRate * 2 * pChannels)) * 10000000) // 16-bit audio.
-  else if (pBitsPerSecond = 32) then
-    hns := Trunc((pBytesWritten / (pSampleRate * 4 * pChannels)) * 10000000); // 32-bit audio.
-
-  // Call HnsTimeToStr function to format the time string
-  Result := HnsTimeToStr(hns,
-                         pShowMilliSeconds);
-end;
-
-
-procedure TfrmLoopBackCapture.OnAudioSinkProgressEvent(Sender: TObject);
-var
-  latency: NativeInt;
-  timePlayed: Int64;
-  hnsStr: string;
-  bitsPerSample: Integer;
-  sampleRate: Integer;
-  channels: Integer;
-
-begin
-
-  if not Assigned(oAudioSink) then
+  if not Assigned(prAudioSink) then
     Exit;
 
-  latency := NativeInt(oAudioSink.Latency);
-  sampleRate := oAudioSink.WaveFmtEx.nSamplesPerSec;
-  channels := oAudioSink.WaveFmtEx.nChannels;
-  bitsPerSample := oAudioSink.WaveFmtEx.wBitsPerSample;
+  if prAudioSink.StopRecording then
+    Exit;
 
-  Inc(iTotalBytesProcessed,
-      oAudioSink.BytesWritten);
+  // We only probe this once.
+  if not BufferDurationCaptionSet then
+    begin
+      lblCaptureBufferDuration.Caption := Format('Capture buffer duration: %d ms.',
+                                                 [prAudioSink.BufferDuration div 10000]);
+      BufferDurationCaptionSet := True;
+    end;
 
-  // Format to string (00:00:00,000)
-  hnsStr := BytesToTimeStr(iTotalBytesProcessed,
-                           sampleRate,
-                           channels,
-                           bitsPerSample,
-                           True);
+  lblStatus.Caption := 'Capturing from source: ' + FormatDateTime('hh:nn:ss:zzz',
+                                                                  aStopWatch.ElapsedMilliseconds / MSecsPerDay);
 
-  lblStatus.Caption := Format('Capturing from source: %s (Latency: %d)',
-                              [hnsStr,
-                               latency]);
-
-  Application.ProcessMessages();
+  Application.ProcessMessages;
 end;
 
 
@@ -280,15 +257,16 @@ var
   hr: HResult;
   i: Integer;
   bFileExists: Boolean;
+  sOrgFileName: TFileName;
 
 label
   done;
 
 begin
-  hr := S_OK;
-  iTotalBytesProcessed := 0;
 
-  if not Assigned(oAudioSink) then
+  hr := S_OK;
+
+  if not Assigned(prAudioSink) then
     begin
       hr := E_POINTER;
       goto done;
@@ -297,9 +275,12 @@ begin
   if SUCCEEDED(hr) then
     begin
 
-      sFileName := Format('%s%s',
-                          [edFileName.Text,
-                           lblFileExt.Caption]);
+      prFileName := Format('%s', [edFileName.Text]);
+      if (sOrgFileName = '') or prEdited then
+        begin
+          sOrgFileName := prFileName;
+          prEdited := False;
+        end;
 
       if cbxDontOverWrite.Checked then
         begin
@@ -307,12 +288,19 @@ begin
           i := 0;
           while (bFileExists = True) do
             begin
-              if FileExists(sFileName) then
+              if FileExists(prFileName + lblFileExt.Caption) then
                 begin
-                  sFileName := Format('%s(%d)%s',
-                                      [edFileName.Text,
-                                      i,
-                                      lblFileExt.Caption]);
+                  if (sOrgFileName = prFileName) then
+                    prFileName := Format('%s(%d)',
+                                         [edFileName.Text,
+                                          i])
+                  else
+                    begin
+                      prFileName := Format('%s(%d)',
+                                           [sOrgFileName,
+                                            i]);
+                      edFileName.Text := prFileName;
+                    end;
                   Inc(i);
                 end
               else
@@ -320,34 +308,46 @@ begin
             end;
         end;
 
+      // Show new filename to user.
+      edFileName.Text := prFileName;
+
       butStop.Enabled := True;
       butStart.Enabled := False;
       butPlayData.Enabled := False;
       EnablePanels(False);
 
       // User did not choose settings from dlg
-      if oDataFlow = eDataFlow(-1) then
+      if prDataFlow = eDataFlow(-1) then
         begin
-          oDataFlow := eRender;
-          oRole := eMultimedia;
+          prDataFlow := eRender;
+          prRole := eMultimedia;
         end;
 
       // Buffersize depends on latency and bitrate
       SetBufferDuration();
 
+      // Enable the timer.
+      BufferDurationCaptionSet := False;
+      thrTimer.Enabled := True;
+      aStopWatch.Start;
+      aStopWatch.StartNew;
+
       // Capture the audio stream from the default rendering device.
-      hr := oAudioSink.RecordAudioStream(oDataFlow,
-                                         oRole,
-                                         oBufferDuration,
-                                         LPWSTR(sFileName));
+      hr := prAudioSink.RecordAudioStream(prDataFlow,
+                                          prRole,
+                                          prBufferDuration,
+                                          StrToPWideChar(prFileName + lblFileExt.Caption));
       if FAILED(hr) then
         begin
           butStop.Enabled := False;
           butStart.Enabled := True;
           EnablePanels(True);
+          thrTimer.Enabled := False;
+          aStopWatch.Reset;
           goto done;
         end;
     end;
+
 done:
   Result := hr;
 end;
@@ -355,24 +355,28 @@ end;
 
 procedure TfrmLoopBackCapture.butPlayDataClick(Sender: TObject);
 begin
+
   ShellExecute(Handle,
                'open',
-               LPWSTR(sFileName),
+               StrToPWideChar(prFileName + lblFileExt.Caption),
                nil,
                nil,
-               SW_SHOWNORMAL) ;
+               SW_SHOWNORMAL);
 end;
 
 
 procedure TfrmLoopBackCapture.butStartClick(Sender: TObject);
 begin
+
   StartCapture();
 end;
 
 
 procedure TfrmLoopBackCapture.butStopClick(Sender: TObject);
 begin
-  oAudioSink.StopRecording := True;
+
+  prAudioSink.StopRecording := True;
+
   EnablePanels(True);
   Self.BorderIcons := [biSystemMenu, biMinimize];
 end;
@@ -380,10 +384,12 @@ end;
 
 procedure TfrmLoopBackCapture.butResetEngineClick(Sender: TObject);
 begin
+
   RemoveAudioSink();
   CreateNewAudioSink();
   EnablePanels(True);
-  Self.BorderIcons := [biSystemMenu, biMinimize];
+  Self.BorderIcons := [biSystemMenu,
+                       biMinimize];
   butPlayData.Enabled := False;
   butStop.Enabled := False;
   butStart.Enabled := True;
@@ -393,6 +399,7 @@ end;
 
 procedure TfrmLoopBackCapture.butShowdlgDevicesClick(Sender: TObject);
 begin
+
   // Create the dialog if it's not allready done.
   if not Assigned(DevicesDlg) then
     begin
@@ -404,9 +411,9 @@ begin
   // Ask the user to select one.
   if (DevicesDlg.ShowModal = mrOk) then
     begin
-      oDataFlow := DevicesDlg.oDataFlow;
-      rbRenderingDevice.Checked := (oDataFlow = eRender);
-      rbCaptureDevice.Checked := (oDataFlow = eCapture);
+      prDataFlow := DevicesDlg.puDataFlow;
+      rbRenderingDevice.Checked := (prDataFlow = eRender);
+      rbCaptureDevice.Checked := (prDataFlow = eCapture);
       lblStatus.Caption := Format('Please select a%s.',[Panel2.Caption]);
     end
   else
@@ -415,13 +422,28 @@ begin
       // Set radiobuttons to default.
       rbRenderingDevice.Checked := True;
       rbMultimedia.Checked := True;
-      lblStatus.Caption := 'Start Capture';
+      lblStatus.Caption := 'Start capture';
     end;
+end;
+
+
+procedure TfrmLoopBackCapture.cbxAutoBufferSizeClick(Sender: TObject);
+begin
+  if cbxAutoBufferSize.Checked then
+    begin
+      prBufferDuration := 0;
+      tbBufferDuration.Position := 0;
+      tbBufferDuration.Enabled := False;
+      SetBufferDuration();
+    end
+  else
+    tbBufferDuration.Enabled := True;
 end;
 
 
 procedure TfrmLoopBackCapture.cbxStayOnTopClick(Sender: TObject);
 begin
+
   if cbxStayOnTop.Checked then
     SetWindowPos(Handle,
                  HWND_TOPMOST,
@@ -438,15 +460,19 @@ begin
                  0,
                  0,
                  SWP_NoMove or SWP_NoSize);
-
 end;
 
 
 procedure TfrmLoopBackCapture.FormCloseQuery(Sender: TObject;
   var CanClose: Boolean);
 begin
+
   CanClose := False;
+  aStopWatch.Stop;
+  thrTimer.Enabled := False;
+  FreeAndNil(thrTimer);
   RemoveAudioSink();
+
   CanClose := True;
 end;
 
@@ -455,12 +481,13 @@ procedure TfrmLoopBackCapture.FormCreate(Sender: TObject);
 begin
   //
   lblStatus.ControlStyle := lblStatus.ControlStyle + [csOpaque];
-
+  aStopWatch := TStopwatch.Create;
+  thrTimer := TUniThreadedTimer.Create(nil);
+  thrTimer.Period := 1;  // One millisecond resolution.
+  thrTimer.Enabled := False;
+  thrTimer.OnTimerEvent := OnTimer;
   CreateNewAudioSink();
-
-  oDataFlow := eDataFlow(-1);
-  tbBufferDuration.Position := 10;
-  SetBufferDuration();
+  prEdited := False;
 end;
 
 
@@ -468,21 +495,31 @@ procedure TfrmLoopBackCapture.CreateNewAudioSink();
 begin
 
   // Create the AudioSink object.
-  oAudioSink := TAudioSink.Create();
+  prAudioSink := TAudioSink.Create();
   // Set event handlers.
-  oAudioSink.OnProcessingData := OnAudioSinkProgressEvent;
-  oAudioSink.OnStoppedCapturing := OnCapturingStoppedEvent;
+  prAudioSink.OnStoppedCapturing := OnCapturingStoppedEvent;
+  prDataFlow := eDataFlow(-1);
+  tbBufferDuration.Position := 10;
+  SetBufferDuration();
+end;
+
+
+procedure TfrmLoopBackCapture.edFileNameKeyUp(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+
+  prEdited := True;
 end;
 
 
 procedure TfrmLoopBackCapture.RemoveAudioSink();
 begin
-  if Assigned(oAudioSink) then
+  if Assigned(prAudioSink) then
     begin
-      if not oAudioSink.StopRecording then
-        oAudioSink.StopRecording := True;
+      if not prAudioSink.StopRecording then
+        prAudioSink.StopRecording := True;
 
-      FreeAndNil(oAudioSink);
+      FreeAndNil(prAudioSink);
     end;
 end;
 
@@ -498,28 +535,28 @@ var
   sms: string;
 
 begin
-  oBufferDuration := (REFTIMES_PER_SEC) * tbBufferDuration.Position;
-  if (oBufferDuration > REFTIMES_PER_SEC) then
+  prBufferDuration := (REFTIMES_PER_SEC) * tbBufferDuration.Position;
+  if (prBufferDuration > REFTIMES_PER_SEC) then
     sms := 'milliseconds'
   else
     sms := 'millisecond';
-  lblBufferDuration.Caption := Format('Capture Buffer Length(%d %s)',
-                                      [tbBufferDuration.Position,
-                                       sms])
-end;
 
+  if (prBufferDuration = 0) then
+    lblBufferDuration.Caption := 'The audioclient will automaticly adjust the buffer duration.'
+  else
+    lblBufferDuration.Caption := Format('Capture buffer duration(%d %s)',
+                                        [tbBufferDuration.Position,
+                                         sms])
+end;
 
 
 // initialization and finalization =============================================
 
 
 initialization
-  // A gui app should always use COINIT_APARTMENTTHREADED in stead of COINIT_MULTITHREADED
-  CoInitializeEx(nil,
-                COINIT_APARTMENTTHREADED);
 
   if FAILED(MFStartup(MF_VERSION,
-                      MFSTARTUP_FULL)) then
+                      MFSTARTUP_LITE)) then
       begin
         MessageBox(0,
                    lpcwstr('Your computer does not support this Media Foundation API version ' +
@@ -531,5 +568,5 @@ initialization
 finalization
 
   MFShutdown();
-  CoUnInitialize();
+
 end.

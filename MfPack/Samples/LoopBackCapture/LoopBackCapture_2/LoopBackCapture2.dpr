@@ -1,24 +1,17 @@
 program LoopBackCapture2;
 
 uses
-  {$IFDEF FASTMM}
-  FastMM4,
-  madExcept,
-  madLinkDisAsm,
-  madListHardware,
-  madListProcesses,
-  madListModules,
-  {$ENDIF}
-
   Vcl.Forms,
   frmLoopBackCapture in 'frmLoopBackCapture.pas' {frmMain},
   Common in 'Common.pas',
+  ProcessInfoDlg in 'ProcessInfoDlg.pas' {dlgProcessInfo},
   LoopBackCapture in 'LoopBackCapture.pas',
-  ProcessInfoDlg in 'ProcessInfoDlg.pas' {dlgProcessInfo};
+  UniThreadTimer in 'UniThreadTimer.pas';
 
 {$R *.res}
 
 begin
+
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
   Application.CreateForm(TfrmMain, frmMain);
