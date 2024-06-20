@@ -28,7 +28,7 @@
 
 # MfPack 
 
-Version X 3.1.6
+Version X 3.1.7
 Delphi XE2 up to and including Delphi 12 
 SDK version: 10.0.22621.0 (Windows 11)
 
@@ -198,7 +198,27 @@ It also demonstrates how to get a process by using the tlhelp32 API, to list a s
 The application is provided with a dialog to select a running process from the process tree you want to pick and has
 a button to get the current PID of your application.
 
+The application is using MMCSS and runs the rendering part in a separate thread.  
+
 ![](https://github.com/FactoryXCode/MfPack/blob/Master/MfPack/Pic/LoopbackCapture2.png)
+
+
+**Threaded Loopback Capture Sample**
+
+Demonstrates how to capture sound from a rendering or capture device (one of the soundcard's endpoints)
+using WASAPI in combination with mmio to write wav-files.
+This sample lets you to choose between different latency's and 
+buffersize for better sound to eliminate buffer related gliches.
+ 
+It has some more advanced features like: 
+   - The rendering part is running in a separate thread to eliminate glitches.
+   - Able to use MMCSS (Multimedia Class Scheduler service).
+   - Stream switch detection.
+   - possibility to write wav data in native format 44.1 kHz/ 16 bit PCM or 
+     the soundcard's audio format (including Uncompressed IEEE floating-point audio).
+
+![](https://github.com/FactoryXCode/MfPack/blob/Master/MfPack/Pic/ThreadedLoopbackCapture.png)
+
 
 
 **XAudio2Player Basic Player**

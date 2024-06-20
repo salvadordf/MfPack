@@ -1,5 +1,5 @@
-//
-// Copyright: � FactoryX. All rights reserved.
+﻿//
+// Copyright: © FactoryX. All rights reserved.
 //
 // Project: MfPack - MediaFoundation
 // Project location: https://sourceforge.net/projects/MFPack
@@ -9,7 +9,7 @@
 // Release date: 12-03-2023
 // Language: ENU
 //
-// Revision Version: 3.1.6
+// Revision Version: 3.1.7
 //
 // Description:
 //   Mainform of the app.
@@ -81,6 +81,7 @@ uses
   Vcl.ComCtrls,
   Vcl.Menus,
   Vcl.ExtCtrls,
+  Vcl.Samples.Spin,
   {CoreAudioApi}
   WinApi.MediaFoundationApi.MfApi,
   WinApi.CoreAudioApi.MMDeviceApi,
@@ -106,10 +107,7 @@ type
     rbConsole: TRadioButton;
     rbMultimedia: TRadioButton;
     rbCommunications: TRadioButton;
-    cbxStayOnTop: TCheckBox;
-    butShowdlgDevices: TButton;
     Panel3: TPanel;
-    tbBufferDuration: TTrackBar;
     lblBufferDuration: TLabel;
     Panel4: TPanel;
     Label1: TLabel;
@@ -121,6 +119,9 @@ type
     butResetEngine: TButton;
     lblCaptureBufferDuration: TLabel;
     cbxAutoBufferSize: TCheckBox;
+    sedBufferSize: TSpinEdit;
+    butShowdlgDevices: TButton;
+    cbxStayOnTop: TCheckBox;
     procedure FormCreate(Sender: TObject);
     procedure butStartClick(Sender: TObject);
     procedure butStopClick(Sender: TObject);
@@ -139,7 +140,8 @@ type
   private
     { Private declarations }
     prAudioSink: TAudioSink;
-    prFileName: string;
+    prFileName: TFileName;
+    prOrgFileName: TFileName;
     prEdited: Boolean;
     prDataFlow: EDataFlow;
     prRole: ERole;
@@ -257,7 +259,6 @@ var
   hr: HResult;
   i: Integer;
   bFileExists: Boolean;
-  sOrgFileName: TFileName;
 
 label
   done;
@@ -276,9 +277,9 @@ begin
     begin
 
       prFileName := Format('%s', [edFileName.Text]);
-      if (sOrgFileName = '') or prEdited then
+      if (prOrgFileName = '') or prEdited then
         begin
-          sOrgFileName := prFileName;
+          prOrgFileName := prFileName;
           prEdited := False;
         end;
 
@@ -290,14 +291,14 @@ begin
             begin
               if FileExists(prFileName + lblFileExt.Caption) then
                 begin
-                  if (sOrgFileName = prFileName) then
+                  if (prOrgFileName = prFileName) then
                     prFileName := Format('%s(%d)',
                                          [edFileName.Text,
                                           i])
                   else
                     begin
                       prFileName := Format('%s(%d)',
-                                           [sOrgFileName,
+                                           [prOrgFileName,
                                             i]);
                       edFileName.Text := prFileName;
                     end;
@@ -432,12 +433,12 @@ begin
   if cbxAutoBufferSize.Checked then
     begin
       prBufferDuration := 0;
-      tbBufferDuration.Position := 0;
-      tbBufferDuration.Enabled := False;
+      sedBufferSize.Value := 0;
+      sedBufferSize.Enabled := False;
       SetBufferDuration();
     end
   else
-    tbBufferDuration.Enabled := True;
+    sedBufferSize.Enabled := True;
 end;
 
 
@@ -483,7 +484,7 @@ begin
   lblStatus.ControlStyle := lblStatus.ControlStyle + [csOpaque];
   aStopWatch := TStopwatch.Create;
   thrTimer := TUniThreadedTimer.Create(nil);
-  thrTimer.Period := 1;  // One millisecond resolution.
+  thrTimer.Period := 10;  // Ten millisecond resolution.
   thrTimer.Enabled := False;
   thrTimer.OnTimerEvent := OnTimer;
   CreateNewAudioSink();
@@ -499,7 +500,7 @@ begin
   // Set event handlers.
   prAudioSink.OnStoppedCapturing := OnCapturingStoppedEvent;
   prDataFlow := eDataFlow(-1);
-  tbBufferDuration.Position := 10;
+  sedBufferSize.Value := 10;
   SetBufferDuration();
 end;
 
@@ -535,8 +536,9 @@ var
   sms: string;
 
 begin
-  prBufferDuration := (REFTIMES_PER_SEC) * tbBufferDuration.Position;
-  if (prBufferDuration > REFTIMES_PER_SEC) then
+
+  prBufferDuration := (REFTIMES_PER_MILLISEC) * sedBufferSize.Value;
+  if (prBufferDuration > REFTIMES_PER_MILLISEC) then
     sms := 'milliseconds'
   else
     sms := 'millisecond';
@@ -545,7 +547,7 @@ begin
     lblBufferDuration.Caption := 'The audioclient will automaticly adjust the buffer duration.'
   else
     lblBufferDuration.Caption := Format('Capture buffer duration(%d %s)',
-                                        [tbBufferDuration.Position,
+                                        [sedBufferSize.Value,
                                          sms])
 end;
 

@@ -10,7 +10,7 @@
 // Release date: 04-10-2020
 // Language: ENU
 //
-// Revision Version: 3.1.6
+// Revision Version: 3.1.7
 // Description: WasApi threaded capture class.
 //
 // Organisation: FactoryX
@@ -21,13 +21,13 @@
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
-// 30/01/2024 All                 Morrissey release  SDK 10.0.22621.0 (Windows 11)
+// 19/06/2024 All                 RammStein release  SDK 10.0.22621.0 (Windows 11)
 //------------------------------------------------------------------------------
 //
 // Remarks: Note that this sample requires Windows 7 or later.
 //
 // Related objects: -
-// Related projects: MfPackX316
+// Related projects: MfPackX317
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -69,11 +69,14 @@ uses
   WinApi.Messages,
   WinApi.WinApiTypes,
   WinApi.ComBaseApi,
-  WinApi.WinMM.MMReg,
+  {WinMM}
+  WinApi.WinMM.MMeApi,
   WinApi.WinMM.MMSysCom,
+  {MediaFoundationApi}
+  WinApi.MediaFoundationApi.MfUtils,
+  {CoreAudioApi}
   WinApi.CoreAudioApi.MMDeviceAPI,
   WinApi.CoreAudioApi.AudioClient,
-  WinApi.MediaFoundationApi.MfUtils,
   WinApi.CoreAudioApi.AudioSessionTypes,
   {System}
   System.Classes,
@@ -211,7 +214,7 @@ constructor CWasapiChat.Create(AppWindow: HWND);
 begin
   _AppWindow := AppWindow;
   //hwndWasApiChat := AllocateHWnd(MessageHandler);  // Not thread safe, you could use a unit as published here:
-                                                   // https://stackoverflow.com/questions/8820294/how-can-i-make-allocatehwnd-threadsafe
+                                                     // https://stackoverflow.com/questions/8820294/how-can-i-make-allocatehwnd-threadsafe
 end;
 
 function CWasapiChat.Initialize(const UseInputDevice: Boolean): Boolean;

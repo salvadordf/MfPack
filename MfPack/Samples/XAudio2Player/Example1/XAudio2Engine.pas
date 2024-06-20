@@ -10,7 +10,7 @@
 // Release date: 30-03-2024
 // Language: ENU
 //
-// Revision Version: 3.1.6
+// Revision Version: 3.1.7
 // Description: The XAudio2 renderer class.
 //
 // Company: FactoryX
@@ -21,13 +21,13 @@
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
-// 30/01/2024 All                 Morrissey release  SDK 10.0.22621.0 (Windows 11)
+// 19/06/2024 All                 RammStein release  SDK 10.0.22621.0 (Windows 11)
 //------------------------------------------------------------------------------
 //
 // Remarks: Requires Windows 7 or higher.
 //
 // Related objects: -
-// Related projects: MfPackX316
+// Related projects: MfPackX317
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -86,8 +86,8 @@ uses
   WinApi.DirectX.XAudio2.XAPO,
   WinApi.DirectX.XAudio2.X3DAudio,
   {WinMM}
-  // WinApi.WinMM.MMSystem,
-  WinApi.WinMM.MMReg,
+  WinApi.WinMM.MMeApi,
+  {Application}
   Tools;
 
 const
@@ -138,7 +138,6 @@ type
 
     property SoundChannels: UINT32 read nChannels;
     property Volumes: TFloatArray read m_VolumeChannels write SetVolumes;
-
   end;
 
 
@@ -154,12 +153,15 @@ end;
 
 destructor TXaudio2Engine.Destroy();
 begin
+
   bPlaying := False;
   if Assigned(pvXAudio2) then
     begin
       pvXAudio2.StopEngine();
       pvMasteringVoice.DestroyVoice();
-      pvMasteringVoice.DestroyVoice();
+      pvSourceVoice.DestroyVoice();
+      pvMasteringVoice := nil;
+      pvSourceVoice := nil;
       SafeRelease(pvXAudio2);
     end;
 
@@ -190,6 +192,7 @@ label
   done;
 
 begin
+
   hwndCaller := hHwnd;
   pvFileName := audiofile;
   pvSourceFileDuration := fileDuration;
@@ -307,7 +310,7 @@ begin
         Continue;
 
       // Convert data to contiguous buffer.
-      hr := sample.ConvertToContiguousBuffer(buffer);
+      hr := sample.ConvertToContiguousBuffer(@buffer);
 
       // Lock Buffer and copy to local memory
       if SUCCEEDED(hr) then
@@ -347,10 +350,11 @@ label
   done;
 
 begin
+
   bReady := False;
 
   // Use the XAudio2Create function to create an instance of the XAudio2 engine.
-  hr := XAudio2Create(pvXAudio2,
+  hr := XAudio2Create(@pvXAudio2,
                       0,
                       XAUDIO2_DEFAULT_PROCESSOR);
   if FAILED(hr) then
@@ -360,11 +364,11 @@ begin
   //
   // The mastering voices encapsulates an audio device.
   // It is the ultimate destination for all audio that passes through an audio graph.
-  hr := pvXAudio2.CreateMasteringVoice(pvMasteringVoice);
+  hr := pvXAudio2.CreateMasteringVoice(@pvMasteringVoice);
   if FAILED(hr) then
     goto done;
 
-  hr := pvXAudio2.CreateSourceVoice(pvSourceVoice,
+  hr := pvXAudio2.CreateSourceVoice(@pvSourceVoice,
                                     pvWaveformatex);
   if FAILED(hr) then
     goto done;
@@ -413,6 +417,7 @@ begin
 
       HandleThreadMessages(GetCurrentThread());
     end;
+
 done:
   if SUCCEEDED(hr) then
     // Signal we are done playing.
@@ -429,6 +434,7 @@ end;
 
 function TXaudio2Engine.Start(): HResult;
 begin
+
   if not Assigned(pvSourceVoice) then
     begin
       Result := E_POINTER;
@@ -441,6 +447,7 @@ end;
 
 function TXaudio2Engine.Stop(): HResult;
 begin
+
   if not Assigned(pvSourceVoice) then
     begin
       Result := E_POINTER;
@@ -448,12 +455,12 @@ begin
     end;
   Result := pvSourceVoice.Stop();
   bPlaying := False;
-
 end;
 
 
 function TXaudio2Engine.Pause(): HResult;
 begin
+
   if not Assigned(pvSourceVoice) then
     begin
       Result := E_POINTER;
@@ -465,6 +472,7 @@ end;
 
 function TXaudio2Engine.SetVolume(volume: Single): HResult;
 begin
+
   if not Assigned(pvSourceVoice) then
     begin
       Result := E_POINTER;
@@ -505,7 +513,6 @@ begin
                                         XAUDIO2_COMMIT_NOW);
   if FAILED(hr) then
     ShowMessage('Setting channelvolumes failed.');
-
 end;
 
 

@@ -10,7 +10,7 @@
 // Release date: 04-05-2012
 // Language: ENU
 //
-// Revision Version: 3.1.6
+// Revision Version: 3.1.7
 // Description: AudioClient API interface definition.
 //
 // Organisation: FactoryX
@@ -21,7 +21,7 @@
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
-// 30/01/2024 All                 Morrissey release  SDK 10.0.22621.0 (Windows 11)
+// 19/06/2024 All                 RammStein release  SDK 10.0.22621.0 (Windows 11)
 //------------------------------------------------------------------------------
 //
 // Remarks: Requires Windows 8 or later.
@@ -32,7 +32,7 @@
 //          Try to get the latest audiodrivers to solve these issues.
 //
 // Related objects: -
-// Related projects: MfPackX316
+// Related projects: MfPackX317
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -77,6 +77,7 @@ uses
   WinApi.WinError,
   {WinMM}
   WinApi.WinMM.MMReg,
+  WinApi.WinMM.MMeApi,
   {CoreAudioApi}
   WinApi.CoreAudioApi.AudioMediaType,
   WinApi.CoreAudioApi.AudioSessionTypes;
@@ -620,7 +621,7 @@ type
     //    100-nanosecond units. This is a device method which doesn't require prior audio
     //    stream initialization.
     //
-    //    phnsMinDevicePeriod - [out]
+    //  phnsMinDevicePeriod - [out]
     //    Returns pointer to duration of the minimum WAS period,
     //    in 100-nanosecond units.  This is the minimum periodicity (frames/ packet) that the
     //    driver supports. This value is the minimum periodicity that is supported in the
@@ -794,7 +795,8 @@ type
 
   // Interface IAudioClient2
   // =======================
-  //
+  // Note: Your audio driver needs to support this interface.
+  //       When not, you will get error messages like E_NOTIMPL calling methods of this interface.
   {$HPPEMIT 'DECLARE_DINTERFACE_TYPE(IAudioClient2);'}
   {$EXTERNALSYM IAudioClient2}
   IAudioClient2 = interface(IAudioClient)
@@ -848,8 +850,8 @@ type
     // the AudioClientProperties to TRUE, you must specify the AUDCLNT_STREAMFLAGS_EVENTCALLBACK flag in
     // the StreamFlags parameter to IAudioClient.Initialize.
 
-    function GetBufferSizeLimits([ref] const pFormat: PWAVEFORMATEX;
-                                 bEventDriven: BOOL;
+    function GetBufferSizeLimits({[ref] const} pFormat: PWAVEFORMATEX;
+                                 const bEventDriven: BOOL;
                                  out phnsMinBufferDuration: REFERENCE_TIME;
                                  out phnsMaxBufferDuration: REFERENCE_TIME): HResult; stdcall;
     // Description:
@@ -879,7 +881,8 @@ type
     //
     // Remarks:
     //
-    //  This method may be called at any time but depending on the resource usage situation, it  might not return the same value.
+    //  This method may be called at any time but depending on the resource usage situation,
+    //  it might not return the same value.
     //
 
   end;
@@ -913,7 +916,8 @@ type
 
   // Interface IAudioClient3
   // =======================
-  //
+  // Note: Your audio driver needs to support this interface.
+  //       When not, you will get error messages like E_NOTIMPL calling methods of this interface.
   {$HPPEMIT 'DECLARE_DINTERFACE_TYPE(IAudioClient3);'}
   {$EXTERNALSYM IAudioClient3}
   IAudioClient3 = interface(IAudioClient2)

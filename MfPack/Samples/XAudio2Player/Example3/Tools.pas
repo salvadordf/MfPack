@@ -10,7 +10,7 @@
 // Release date: 24-06-2023
 // Language: ENU
 //
-// Revision Version: 3.1.6
+// Revision Version: 3.1.7
 // Description: Helpers.
 //
 // Company: FactoryX
@@ -27,7 +27,7 @@
 // Remarks: Requires Windows 7 or higher.
 //
 // Related objects: -
-// Related projects: MfPackX316
+// Related projects: MfPackX317
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -75,10 +75,10 @@ uses
   WinApi.Windows,
   WinApi.Messages;
 
-  /// <summary> Usage: HandleThreadMessages(GetCurrentThread()).</summary>
+  /// <summary> Usage: HandleThreadMessages(GetCurrentThread()) or HandleThreadMessages(TThread.CurrentThread.Handle). </summary>
   procedure HandleThreadMessages(AThread: THandle;
                                  AWait: Cardinal = INFINITE);
-
+  /// <summary> This function maps ranges inbetween minimum and maximum values. </summary>
   function MapRange(Value: Single;
                     InMin: Single;
                     InMax: Single;
@@ -122,7 +122,7 @@ function MapRange(Value: Single;
                   OutMin: Single;
                   OutMax: Single): Single;
 begin
-  Result := OutMin + (Value - InMin) * (OutMax - OutMin) / (InMax - InMin);
+  Result := Round(OutMin + (Value - InMin) * (OutMax - OutMin) / (InMax - InMin));
 end;
 
 end.

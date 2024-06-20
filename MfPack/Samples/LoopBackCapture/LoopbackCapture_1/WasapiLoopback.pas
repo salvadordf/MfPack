@@ -10,7 +10,7 @@
 // Release date: 12-03-2023
 // Language: ENU
 //
-// Revision Version: 3.1.6
+// Revision Version: 3.1.7
 //
 // Description:
 //   This unit contains the WASAPI loopback class.
@@ -23,7 +23,7 @@
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
-// 30/01/2024 All                 Morrissey release  SDK 10.0.22621.0 (Windows 11)
+// 19/06/2024 All                 RammStein release  SDK 10.0.22621.0 (Windows 11)
 // 25/04/2004 Tony                Updated to a more stable and crack free version.
 //------------------------------------------------------------------------------
 //
@@ -112,9 +112,12 @@ type
 
     FOnCapturingStopped: TNotifyEvent;
 
+
     function CopyData(pData: PByte;
                       NumFrames: UINT32;
                       pwfx: PWAVEFORMATEX): HResult;
+
+    function OpenFile(ppfileName: LPWSTR): HResult;
 
     function WriteWaveHeader(ppwfx: PWAVEFORMATEX;
                              var pckRIFF: MMCKINFO;
@@ -123,7 +126,6 @@ type
     function FinishWaveFile(var pckRIFF: MMCKINFO;
                             var pckData: MMCKINFO): UINT;
 
-    function OpenFile(ppfileName: LPWSTR): HResult;
 
   public
 
@@ -224,7 +226,32 @@ done:
   Result := hr;
 end;
 
-// /////////////////////////////////////////////////////////////////////////////
+
+function TAudioSink.OpenFile(ppfileName: LPWSTR): HResult;
+var
+  hr: HResult;
+  mi: PMMIOINFO;
+
+begin
+  hr := S_OK;
+
+  // The mmioOpen() function is NOT deprecated as documentation says.
+
+  // Must initialize PMMIOINFO = nil, otherwise mmioOpen wil raise a pointer error.
+  mi := nil;
+  hmFile := mmioOpen(ppFileName,    // some flags cause mmioOpen write to this buffer
+                     mi,            // but not any that we're using
+                     MMIO_WRITE or MMIO_CREATE);
+
+  if (hmFile = 0) then
+    begin
+      hr := E_FAIL;
+      ErrMsg(Format('mmioOpen(%s) failed. wErrorRet = %d',[WideCharToString(ppFileName) , GetLastError()]), hr);
+    end;
+
+  Result := hr;
+end;
+
 
 function TAudioSink.WriteWaveHeader(ppwfx: PWAVEFORMATEX;
                                     var pckRIFF: MMCKINFO;
@@ -484,9 +511,12 @@ begin
   if FAILED(hr) then
     goto done;
 
-  // Don't go below this, because you will get a lot of hick-ups.
-  if (bufferDuration < hnsDefaultDevicePeriod) then
-    bufferDuration := hnsDefaultDevicePeriod;
+  // Pick the correct device period.
+  if (bufferDuration > 0) then
+    begin
+      if (bufferDuration < hnsMinimumDevicePeriod) then
+        bufferDuration := hnsMinimumDevicePeriod;
+    end;
 
   // Initialize low-latency client.
   hr := pAudioClient.Initialize(AUDCLNT_SHAREMODE_SHARED,
@@ -631,32 +661,6 @@ done:
 
   pData := nil;
   pvErrorStatus := hr;
-  Result := hr;
-end;
-
-
-function TAudioSink.OpenFile(ppfileName: LPWSTR): HResult;
-var
-  hr: HResult;
-  mi: PMMIOINFO;
-
-begin
-  hr := S_OK;
-
-  // The mmioOpen() function is NOT deprecated as documentation says.
-
-  // Must initialize PMMIOINFO = nil, otherwise mmioOpen wil raise a pointer error.
-  mi := nil;
-  hmFile := mmioOpen(ppFileName,    // some flags cause mmioOpen write to this buffer
-                     mi,            // but not any that we're using
-                     MMIO_WRITE or MMIO_CREATE);
-
-  if (hmFile = 0) then
-    begin
-      hr := E_FAIL;
-      ErrMsg(Format('mmioOpen(%s) failed. wErrorRet = %d',[WideCharToString(ppFileName) , GetLastError()]), hr);
-    end;
-
   Result := hr;
 end;
 

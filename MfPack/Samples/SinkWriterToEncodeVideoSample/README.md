@@ -1,6 +1,6 @@
 # SinkWriterToEncodeVideoSamples
 
-Version: X 3.1.6
+Version: X 3.1.7
 
 Description:
   These samples demonstrates how to use the SinkWriter to encode a video file from a bitmap.
@@ -24,7 +24,7 @@ Project location: https://github.com/FactoryXCode/MfPack
                   https://sourceforge.net/projects/MFPack
 
 First release date: 25-11-2022
-Final release date: 28-03-2024
+Final release date: 30-05-2024
 
 Copyright © FactoryX. All rights reserved.
 

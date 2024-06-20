@@ -10,7 +10,7 @@
 // Release date: 04-05-2012
 // Language: ENU
 //
-// Revision Version: 3.1.6
+// Revision Version: 3.1.7
 // Description: Type definitions used by the audio session manager RPC/COM interfaces.
 //
 // Organisation: FactoryX
@@ -21,7 +21,7 @@
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
-// 30/01/2024 All                 Morrissey release  SDK 10.0.22621.0 (Windows 11)
+// 19/06/2024 All                 RammStein release  SDK 10.0.22621.0 (Windows 11)
 //------------------------------------------------------------------------------
 //
 // Remarks: Pay close attention for supported platforms (ie Vista or Win 7/8/8.1/10).
@@ -33,7 +33,7 @@
 //          Requires Windows Vista or later.
 // 
 // Related objects: -
-// Related projects: MfPackX316
+// Related projects: MfPackX317
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -206,8 +206,6 @@ type
   //     none defined currently
   //
 
-
-
 const
 
   AUDCLNT_STREAMFLAGS_CROSSPROCESS              = $00010000;
@@ -220,8 +218,11 @@ const
   {$EXTERNALSYM AUDCLNT_STREAMFLAGS_NOPERSIST}
   AUDCLNT_STREAMFLAGS_RATEADJUST                = $00100000;
   {$EXTERNALSYM AUDCLNT_STREAMFLAGS_RATEADJUST}
-  AUDCLNT_STREAMFLAGS_PREVENT_LOOPBACK_CAPTURE  = $01000000; // deprecated: Removed since version 1903
-  {$EXTERNALSYM AUDCLNT_STREAMFLAGS_PREVENT_LOOPBACK_CAPTURE}
+
+  // deprecated: Removed since version 1903
+  // AUDCLNT_STREAMFLAGS_PREVENT_LOOPBACK_CAPTURE  = $01000000;
+  // {$EXTERNALSYM AUDCLNT_STREAMFLAGS_PREVENT_LOOPBACK_CAPTURE}
+
   AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY       = $08000000;
   {$EXTERNALSYM AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY}
   AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM            = $80000000;

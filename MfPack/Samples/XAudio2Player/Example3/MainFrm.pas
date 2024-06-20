@@ -10,7 +10,7 @@
 // Release date: 28-03-2024
 // Language: ENU
 //
-// Revision Version: 3.1.6
+// Revision Version: 3.1.7
 // Description: Main window.
 //
 // Company: FactoryX
@@ -21,13 +21,13 @@
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
-// 30/01/2024 All                 Morrissey release  SDK 10.0.22621.0 (Windows 11)
+// 19/06/2024 All                 RammStein release  SDK 10.0.22621.0 (Windows 11)
 //------------------------------------------------------------------------------
 //
 // Remarks: Requires Windows 10 or higher.
 //
 // Related objects: -
-// Related projects: MfPackX316
+// Related projects: MfPackX317
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -105,8 +105,8 @@ const
                        'Free Lossless Audio Codec|*.flac|' +                // 4
                        'Advanced Audio Coding (AAC)|*.aac|' +               // 5
                        'MPEG-4 Audio|*.m4a|' +                              // 6
-                       'Windows Media Audio|*.wma' +                        // 7
-                       'All Files|*.*';                                     // 8
+                       'Windows Media Audio|*.wma|' +                       // 7
+                       'All Files|*.*|';                                    // 8
 type
 
   TfrmMain = class(TForm)
@@ -138,14 +138,10 @@ type
     lblPitch: TLabel;
     Label4: TLabel;
     Bevel7: TBevel;
-    Label5: TLabel;
-    Label6: TLabel;
     trbVolumeR: TTrackBar;
     trbVolumeL: TTrackBar;
     cbLockVolumeSliders: TCheckBox;
     trbPitch: TTrackBar;
-    cbxReverbMain: TCheckBox;
-    cbxReverbSource: TCheckBox;
     ckbReverbMain: TComboBox;
     ckbReverbSource: TComboBox;
     CheckBox1: TCheckBox;
@@ -156,6 +152,10 @@ type
     lblBarPositionInSamples: TLabel;
     lblBarPositionInSTime: TLabel;
     stxtStatus: TStaticText;
+    Label9: TLabel;
+    Label5: TLabel;
+    Bevel1: TBevel;
+    Bevel5: TBevel;
     procedure Open1Click(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure butPlayPauseClick(Sender: TObject);
@@ -167,8 +167,6 @@ type
     procedure FormKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure trbPitchChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
-    procedure cbxReverbMainClick(Sender: TObject);
-    procedure cbxReverbSourceClick(Sender: TObject);
     procedure StatusBarMouseMove(Sender: TObject; Shift: TShiftState; X,
       Y: Integer);
     procedure pbProgressMouseUp(Sender: TObject; Button: TMouseButton;
@@ -176,6 +174,8 @@ type
     procedure CheckBox1Click(Sender: TObject);
     procedure pbProgressMouseMove(Sender: TObject; Shift: TShiftState; X,
       Y: Integer);
+    procedure ckbReverbMainCloseUp(Sender: TObject);
+    procedure ckbReverbSourceCloseUp(Sender: TObject);
 
   private
     { Private declarations }
@@ -184,30 +184,31 @@ type
     fAudioFileName: TFileName;
     mftAudioDuration: MFTIME;
 
-    iSliderL: FLOAT;
-    iSliderR: FLOAT;
-
-    function GetAudioFile(): string;
+    function OpenAudioFile(): string;
 
     /// <summary>Set Left and/or Right volume.</summary>
     procedure SetVolumeChannels();
 
-    // Get the status of the XAudio2 engine.
+    /// <summary>Get the status of the XAudio2 engine.</summary>
     function GetStatus(): string;
+
     // Helper for Reverb calls
-    function GetReverbParams(index: Integer): TReverbParams;
+    //function GetReverbParams(index: Integer): TReverbParams;
 
+    // Event handlers ==========================================================
 
-    // Xaudi2Engine events
+    // Xaudi2Engine events.
     procedure HandleOnProcessingData(Sender: TObject);
     procedure HandleOnAudioReadyEvent(Sender: TObject);
 
     procedure HandleOnAudioStoppedEvent(Sender: TObject);
     procedure HandleOnAudioPlayingEvent(Sender: TObject);
     procedure HandleOnAudioPauzedEvent(Sender: TObject);
-    // XAudio2VoiceCallback events
+
+    // XAudio2VoiceCallback events.
     procedure HandleOnVoiceProcessingPassStartEvent(Sender: TObject);
     procedure HandleOnVoiceProcessingPassEndEvent(Sender: TObject);
+
     procedure HandleOnStreamEndEvent(Sender: TObject);
     procedure HandleOnBufferStartEvent(Sender: TObject);
     procedure HandleOnBufferEndEvent(Sender: TObject);
@@ -228,6 +229,7 @@ implementation
 
 procedure TfrmMain.butPlayPauseClick(Sender: TObject);
 begin
+
   if not Assigned(fXaudio2Engine) then
     Exit;
 
@@ -236,7 +238,7 @@ begin
       // Play.
       fXaudio2Engine.Play();
       // Keep volume on previous volume.
-      SetVolumeChannels();
+      //SetVolumeChannels();
       butPlayPause.Tag := 1;
     end
   else // Pause.
@@ -264,23 +266,14 @@ begin
   // You don't need to command Play, this will be done internally.
   hr := fXaudio2Engine.InitializeXAudio2(True);
 
-  // Set choosen effects.
-  if cbxReverbMain.Checked then
-    fXaudio2Engine.SetReverb(afxMasteringVoice,
-                             GetReverbParams(ckbReverbMain.ItemIndex),
-                             cbxReverbMain.Checked);
-
-  if cbxReverbSource.Checked then
-    fXaudio2Engine.SetReverb(afxSourceVoice,
-                             GetReverbParams(ckbReverbMain.ItemIndex),
-                             cbxReverbSource.Checked);
-
-  // Add more effects here =====================================================
-
-  // ===========================================================================
-
   // Keep volume on previous volume.
   SetVolumeChannels();
+
+  // Set choosen effects.
+  ckbReverbMainCloseUp(nil);
+  ckbReverbSourceCloseUp(nil);
+
+  // ===========================================================================
 
   if FAILED(hr) then
     StatusBar.SimpleText := Format('Could not initialize XAudio2 Error: %d.', [hr]);
@@ -296,49 +289,59 @@ begin
   fXaudio2Engine.Stop();
 end;
 
-// Helper.
-function TfrmMain.GetReverbParams(index: Integer): TReverbParams;
-begin
-  case index of
-    0: Result := rpDefault;
-    1: Result := rpMinimum;
-    2: Result := rpMaximum;
-    3: Result := rpManual;
-    else
-      Result := rpDefault;
-  end;
-end;
-
-
-procedure TfrmMain.cbxReverbMainClick(Sender: TObject);
-begin
-  if Assigned(fXaudio2Engine) then
-    fXaudio2Engine.SetReverb(afxMasteringVoice,
-                             GetReverbParams(ckbReverbMain.ItemIndex),
-                             cbxReverbMain.Checked);
-end;
-
-
-procedure TfrmMain.cbxReverbSourceClick(Sender: TObject);
-begin
-  if Assigned(fXaudio2Engine) then
-    fXaudio2Engine.SetReverb(afxSourceVoice,
-                             GetReverbParams(ckbReverbSource.ItemIndex),
-                             cbxReverbSource.Checked);
-end;
-
 
 procedure TfrmMain.CheckBox1Click(Sender: TObject);
 var
   params: FXMASTERINGLIMITER_PARAMETERS;
 
 begin
+
   if Assigned(fXaudio2Engine) then
     begin
       params.Release := spedLimiterReleaseTime.Value;
       params.Loudness := spedLimiterThreshold.Value;
       fXaudio2Engine.SetMasterLimiter(params);
     end;
+end;
+
+
+procedure TfrmMain.ckbReverbMainCloseUp(Sender: TObject);
+var
+  index: Integer;
+
+begin
+
+  if not Assigned(fXaudio2Engine) then
+    Exit;
+
+  if (ckbReverbMain.ItemIndex > 0) then
+    index := ckbReverbMain.ItemIndex - 1
+  else
+    index := ckbReverbMain.ItemIndex;
+
+  fXaudio2Engine.SetReverb(afxMasteringVoice,
+                           fXaudio2Engine.ReverbParameters[index].nativeParam,
+                           (ckbReverbMain.ItemIndex > 0));
+end;
+
+
+procedure TfrmMain.ckbReverbSourceCloseUp(Sender: TObject);
+var
+  index: Integer;
+
+begin
+
+  if not Assigned(fXaudio2Engine) then
+    Exit;
+
+  if (ckbReverbSource.ItemIndex > 0) then
+    index := ckbReverbSource.ItemIndex - 1
+  else
+    index := ckbReverbSource.ItemIndex;
+
+  fXaudio2Engine.SetReverb(afxSourceVoice,
+                           fXaudio2Engine.ReverbParameters[index].nativeParam,
+                           (ckbReverbSource.ItemIndex > 0));
 end;
 
 
@@ -350,6 +353,7 @@ end;
 
 procedure TfrmMain.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
+
   CanClose := False;
   if Assigned(fXaudio2Engine) then
     begin
@@ -361,10 +365,25 @@ end;
 
 
 procedure TfrmMain.FormCreate(Sender: TObject);
+var
+  i: Integer;
+
+  {$IFDEF DEBUG}
+  DebugReverbParamsList: TStringlist;
+  {$ENDIF}
+
 begin
-  // Create the engine class.
+
+  // Create the engine and set handlers.
   fXaudio2Engine := TXaudio2Engine.Create();
-  //
+
+  if not Assigned(fXaudio2Engine) then
+    begin
+      ShowMessage('Error. The audio2Engine could not be created.');
+      Exit;
+    end;
+
+
   fXaudio2Engine.OnProcessingData := HandleOnProcessingData;
   fXaudio2Engine.OnAudioReadyEvent := HandleOnAudioReadyEvent;
 
@@ -379,8 +398,71 @@ begin
   fXaudio2Engine.OnBufferStartEvent := HandleOnBufferStartEvent;
   fXaudio2Engine.OnBufferEndEvent := HandleOnBufferEndEvent;
 
+  // Enable peakmeters.
+  pmLeft.Enabled := True;
+  pmRight.Enabled := True;
+
   dlgOpen.Filter := AUDIO_FILE_FILTER;
   dlgOpen.FilterIndex := 1;
+
+  // Load reverb parameters in the list.
+  ckbReverbMain.Clear;
+  ckbReverbSource.Clear;
+  // Load effect parameters.
+  //fReverbI3DL2ParamArray := GetReverbParams();
+
+  {$IFDEF DEBUG}
+    DebugReverbParamsList := TStringlist.Create;
+  {$ENDIF}
+
+  ckbReverbMain.Clear;
+  ckbReverbSource.Clear;
+  // First in the list.
+  ckbReverbMain.Items.Append('None');
+  ckbReverbSource.Items.Append('None');
+
+  for i := 0 to Length(fXaudio2Engine.ReverbParameters) - 1 do
+    begin
+       ckbReverbMain.Items.Append(fXaudio2Engine.ReverbParameters[i].i3dl2Name);
+       ckbReverbSource.Items.Append(fXaudio2Engine.ReverbParameters[i].i3dl2Name);
+
+       {$IFDEF DEBUG}
+         DebugReverbParamsList.Append(fXaudio2Engine.ReverbParameters[i].i3dl2Name);
+         DebugReverbParamsList.Append('-----------------------------------------');
+         DebugReverbParamsList.Append( Format('%s: %f',['WetDryMix', fXaudio2Engine.ReverbParameters[i].nativeParam.WetDryMix]));
+         DebugReverbParamsList.Append( Format('%s: %d',['ReflectionsDelay', fXaudio2Engine.ReverbParameters[i].nativeParam.ReflectionsDelay]));
+         DebugReverbParamsList.Append( Format('%s: %d',['ReverbDelay', fXaudio2Engine.ReverbParameters[i].nativeParam.ReverbDelay]));
+         DebugReverbParamsList.Append( Format('%s: %d',['RearDelay', fXaudio2Engine.ReverbParameters[i].nativeParam.RearDelay]));
+         DebugReverbParamsList.Append( Format('%s: %d',['SideDelay', fXaudio2Engine.ReverbParameters[i].nativeParam.SideDelay]));
+         DebugReverbParamsList.Append( Format('%s: %d',['PositionLeft', fXaudio2Engine.ReverbParameters[i].nativeParam.PositionLeft]));
+         DebugReverbParamsList.Append( Format('%s: %d',['PositionRight', fXaudio2Engine.ReverbParameters[i].nativeParam.PositionRight]));
+         DebugReverbParamsList.Append( Format('%s: %d',['PositionMatrixLeft', fXaudio2Engine.ReverbParameters[i].nativeParam.PositionMatrixLeft]));
+         DebugReverbParamsList.Append( Format('%s: %d',['PositionMatrixLeft', fXaudio2Engine.ReverbParameters[i].nativeParam.PositionMatrixRight]));
+         DebugReverbParamsList.Append( Format('%s: %d',['EarlyDiffusion', fXaudio2Engine.ReverbParameters[i].nativeParam.EarlyDiffusion]));
+         DebugReverbParamsList.Append( Format('%s: %d',['LateDiffusion', fXaudio2Engine.ReverbParameters[i].nativeParam.LateDiffusion]));
+         DebugReverbParamsList.Append( Format('%s: %d',['LowEQGain', fXaudio2Engine.ReverbParameters[i].nativeParam.LowEQGain]));
+         DebugReverbParamsList.Append( Format('%s: %d',['LowEQCutoff', fXaudio2Engine.ReverbParameters[i].nativeParam.LowEQCutoff]));
+         DebugReverbParamsList.Append( Format('%s: %d',['HighEQGain', fXaudio2Engine.ReverbParameters[i].nativeParam.HighEQGain]));
+         DebugReverbParamsList.Append( Format('%s: %d',['HighEQCutoff', fXaudio2Engine.ReverbParameters[i].nativeParam.HighEQCutoff]));
+         DebugReverbParamsList.Append( Format('%s: %f',['RoomFilterFreq', fXaudio2Engine.ReverbParameters[i].nativeParam.RoomFilterFreq]));
+         DebugReverbParamsList.Append( Format('%s: %f',['RoomFilterMain', fXaudio2Engine.ReverbParameters[i].nativeParam.RoomFilterMain]));
+         DebugReverbParamsList.Append( Format('%s: %f',['RoomFilterHF', fXaudio2Engine.ReverbParameters[i].nativeParam.RoomFilterHF]));
+         DebugReverbParamsList.Append( Format('%s: %f',['ReflectionsGain', fXaudio2Engine.ReverbParameters[i].nativeParam.ReflectionsGain]));
+         DebugReverbParamsList.Append( Format('%s: %f',['ReverbGain', fXaudio2Engine.ReverbParameters[i].nativeParam.ReverbGain]));
+         DebugReverbParamsList.Append( Format('%s: %f',['DecayTime', fXaudio2Engine.ReverbParameters[i].nativeParam.DecayTime]));
+         DebugReverbParamsList.Append( Format('%s: %f',['Density', fXaudio2Engine.ReverbParameters[i].nativeParam.Density]));
+         DebugReverbParamsList.Append( Format('%s: %f',['RoomSize', fXaudio2Engine.ReverbParameters[i].nativeParam.RoomSize]));
+         DebugReverbParamsList.Append( Format('%s: %d',['DisableLateField', Integer(fXaudio2Engine.ReverbParameters[i].nativeParam.DisableLateField)]));
+         DebugReverbParamsList.Append('');
+         DebugReverbParamsList.Append('');
+       {$ENDIF}
+    end;
+  {$IFDEF DEBUG}
+  DebugReverbParamsList.SaveToFile('NativeDebugReverbParamsList.txt');
+  FreeAndNil(DebugReverbParamsList);
+  {$ENDIF}
+  ckbReverbMain.ItemIndex := 0;
+  ckbReverbSource.ItemIndex := 0;
 end;
 
 
@@ -439,8 +521,9 @@ begin
 end;
 
 
-function TfrmMain.GetAudioFile(): string;
+function TfrmMain.OpenAudioFile(): string;
 begin
+
   Result := 'No audiofile selected.';
   dlgOpen.FileName := '';
   if not dlgOpen.Execute(Handle) then
@@ -456,29 +539,18 @@ begin
   if not Assigned(fXaudio2Engine) then
     Exit;
 
-  // trHorizontal or trVertical use
-  if (trbVolumeL.Orientation = trVertical) then
-    iSliderL := ((trbVolumeL.Max - trbVolumeL.Position) + trbVolumeL.Min) * 0.01
-  else
-    iSliderL := (trbVolumeL.Position * 0.01);
-
-  if (trbVolumeR.Orientation = trVertical) then
-    iSliderR := ((trbVolumeR.Max - trbVolumeR.Position) + trbVolumeR.Min) * 0.01
-  else
-    iSliderR := (trbVolumeR.Position * 0.01);
-
   // Mono
   // This is a very rare case, because mono is played on the leftchannel only or
   // on both channels without stereo effect.
   if (fXaudio2Engine.SoundChannels = 1) then
-    fXaudio2Engine.VolumeChannels[0] := iSliderL;
+    fXaudio2Engine.VolumeChannels[0] := (Abs(trbVolumeL.Position) * 0.01);
 
   // Stereo
   // The first stereo channel (0) is always the LEFT one!
   if (fXaudio2Engine.SoundChannels = 2) then
     begin
-      fXaudio2Engine.VolumeChannels[0] := iSliderL;
-      fXaudio2Engine.VolumeChannels[1] := iSliderR;
+      fXaudio2Engine.VolumeChannels[0] := (Abs(trbVolumeL.Position) * 0.01);
+      fXaudio2Engine.VolumeChannels[1] := (Abs(trbVolumeR.Position) * 0.01);
     end;
   fXaudio2Engine.SetVolumes(fXaudio2Engine.VolumeChannels);
 end;
@@ -487,6 +559,7 @@ end;
 procedure TfrmMain.StatusBarMouseMove(Sender: TObject; Shift: TShiftState; X,
   Y: Integer);
 begin
+
   if FileExists(fAudioFileFullPath) then
     begin
       StatusBar.ShowHint := True;
@@ -500,45 +573,66 @@ var
   freq: Single;
 
 begin
+
   if not Assigned(fXaudio2Engine) then
     Exit;
 
   freq := MapRange((trbPitch.Position + 10) * 0.1,
-                   trbPitch.Max * 0.1,
-                   trbPitch.Min* 0.1,
-                   MIN_PITCH,
-                   MAX_PITCH);
+                    trbPitch.Max * 0.1,
+                    trbPitch.Min* 0.1,
+                    MIN_PITCH,
+                    MAX_PITCH);
 
   fXaudio2Engine.SetPitch(freq);
 
   if (trbPitch.Position > 0) then
-    lblPitch.Caption :=  Format('-%d',
-                                [Abs(trbPitch.Position)])
+    lblPitch.Caption := Format('-%d',
+                               [Abs(trbPitch.Position)])
   else
-    lblPitch.Caption :=  Format('%d',
-                                [Abs(trbPitch.Position)]);
+    lblPitch.Caption := Format('%d',
+                               [Abs(trbPitch.Position)]);
 end;
 
 
 procedure TfrmMain.trbVolumeLChange(Sender: TObject);
+var
+  vol: Single;
+
 begin
+
   if (cbLockVolumeSliders.Checked = True) then
     trbVolumeR.Position := trbVolumeL.Position;
 
   SetVolumeChannels();
 
-  lblRightVolume.Caption :=  Format('%d', [((trbVolumeL.Max - trbVolumeL.Position) + trbVolumeL.Min)]);
+  vol := MapRange((trbVolumeL.Position),
+                   trbVolumeL.Max,
+                   trbVolumeL.Min,
+                   MIN_VOLUME,
+                   MAX_VOLUME);
+
+  lblLeftVolume.Caption := Format('%d', [Trunc(vol)]) + '%';
 end;
 
 
 procedure TfrmMain.trbVolumeRChange(Sender: TObject);
+var
+  vol: Single;
+
 begin
+
   if (cbLockVolumeSliders.Checked = True) then
     trbVolumeL.Position := trbVolumeR.Position;
 
   SetVolumeChannels();
 
-  lblLeftVolume.Caption := Format('%d', [((trbVolumeR.Max - trbVolumeR.Position) + trbVolumeR.Min)]);
+  vol := MapRange((trbVolumeR.Position),
+                   trbVolumeR.Max,
+                   trbVolumeR.Min,
+                   MIN_VOLUME,
+                   MAX_VOLUME);
+
+  lblRightVolume.Caption := Format('%d', [Trunc(vol)]) + '%';
 end;
 
 
@@ -547,9 +641,10 @@ var
   hr: HResult;
 
 begin
+
 try
   // Select an audiofile.
-  fAudioFileFullPath := GetAudioFile();
+  fAudioFileFullPath := OpenAudioFile();
 
   if (fAudioFileName = 'No audiofile selected.') then
     Exit;
@@ -557,7 +652,8 @@ try
   fAudioFileName := ExtractFileName(fAudioFileFullPath);
 
   // Load and play the audiofile.
-  hr := fXaudio2Engine.LoadAndPlay(fAudioFileFullPath);
+  hr := fXaudio2Engine.LoadAndPlay(Handle,
+                                   fAudioFileFullPath);
 
   if SUCCEEDED(hr) then
     SetVolumeChannels();
@@ -571,10 +667,11 @@ end;
 procedure TfrmMain.pbProgressMouseMove(Sender: TObject; Shift: TShiftState; X,
   Y: Integer);
 var
-  fSamplePos: LONGLONG;
+  fSamplePos: UINT64;
   fTimePos: string;
 
 begin
+
   fSamplePos := Trunc((X / pbProgress.Width) * pbProgress.Max);
   pbProgress.ShowHint := True;
   pbProgress.Hint := Format('Position: %d', [fSamplePos]);
@@ -597,6 +694,7 @@ var
   fPos: LONGLONG;
 
 begin
+
   if (X <= 0) then
     fPos := 0
   else
@@ -614,54 +712,54 @@ end;
 
 function TfrmMain.GetStatus(): string;
 begin
+
+  if not Assigned(fXaudio2Engine) then
+    Exit;
+
   case fXaudio2Engine.PlayStatus of
-    rsStopped: Result := 'Stopped';
-    rsPlaying: Result := 'Playing';
-    rsPauzed: Result := 'Paused';
-    rsEndOfBuffer: Result := 'EndOfBuffer';
-    rsEndOfStream: Result := 'EndOfStream';
+    rsStopped:      Result := 'Stopped';
+    rsPlaying:      Result := 'Playing';
+    rsPauzed:       Result := 'Paused';
+    rsEndOfBuffer:  Result := 'EndOfBuffer';
+    rsEndOfStream:  Result := 'EndOfStream';
     rsInitializing: Result := 'Initializing';
-    rsInitialized: Result := 'Initialized';
+    rsInitialized:  Result := 'Initialized';
 
-    // These are stubs.
-    //rsProcessingPassStart: sStatus := 'ProcessingPassStart';
-    //rsProcessingPassEnd: sStatus := 'ProcessingPassEnd';
+    // These are stubs (eg not implemented).
+    //rsProcessingPassStart: Result := 'ProcessingPassStart';
+    //rsProcessingPassEnd:   Result := 'ProcessingPassEnd';
 
-    rsDestroying: Result := 'Destroying';
+    rsDestroying:   Result := 'Destroying';
     else
-      Result := 'Unknown render status';
+      Result               := 'Unknown render status';
     end;
-
 end;
 
 
 procedure TfrmMain.HandleOnProcessingData(Sender: TObject);
 var
   Xaudio2EventData: TXaudio2EventData;
-  sPlayed: string;
 
 begin
 
-  Xaudio2EventData := fXaudio2Engine.AudioEventData;
+  if (fXaudio2Engine.PlayStatus = rsPlaying) then
+    begin
+      Xaudio2EventData := fXaudio2Engine.AudioEventData;
 
-  TThread.Synchronize(nil,
-                      procedure
-                        begin
-                          sPlayed := HnsTimeToStr(Xaudio2EventData.TimePlayed,
-                                                  False);
+      TThread.Synchronize(nil,
+                          procedure
+                            begin
+                              lblPlayed.Caption := Format('Played: %s',
+                                                          [HnsTimeToStr(Xaudio2EventData.TimePlayed,
+                                                                        False)]);
 
-                          lblProcessed.Caption := Format('Samples: %d',
-                                                         [Xaudio2EventData.Position + Xaudio2EventData.SamplesProcessed]);
+                              lblProcessed.Caption := Format('Samples: %d',
+                                                             [Xaudio2EventData.Position + Xaudio2EventData.SamplesProcessed]);
 
-                          lblPlayed.Caption := Format('Played: %s',
-                                                      [sPlayed]);
-
-                          pbProgress.Position := Xaudio2EventData.Position + Xaudio2EventData.SamplesProcessed;
-                        {$IFDEF DEBUG}
-                          OutputDebugString(StrToPWideChar(GetStatus()));
-                        {$ENDIF}
-
-                        end);
+                              pbProgress.Position := Xaudio2EventData.Position + Xaudio2EventData.SamplesProcessed;
+                              HandleThreadMessages(GetCurrentThread());
+                            end);
+    end;
 
   Application.ProcessMessages;
 end;
@@ -669,6 +767,7 @@ end;
 // Audio is ready to play.
 procedure TfrmMain.HandleOnAudioReadyEvent(Sender: TObject);
 begin
+
   pnlControls.Enabled := True;
   pbProgress.Enabled := True;
   butPlayPause.Enabled := True;
@@ -697,10 +796,12 @@ end;
 // Called after user hits Stop.
 procedure TfrmMain.HandleOnAudioStoppedEvent(Sender: TObject);
 begin
+
   pnlControls.Enabled := False;
   butPlayPause.Enabled := False;
   butPlayPause.Caption := 'Play';
   lblPlayed.Caption := 'Played: 00:00:00';
+  lblProcessed.Caption := 'Samples: 0';
   pbProgress.Position := 0;
   butStop.Enabled := False;
   butReplay.Enabled := True;
@@ -712,38 +813,42 @@ end;
 // Called when playing starts.
 procedure TfrmMain.HandleOnAudioPlayingEvent(Sender: TObject);
 begin
+
   butPlayPause.Enabled := True;
   butPlayPause.Caption := 'Pause';
+  butPlayPause.Tag := 1;
   butStop.Enabled := True;
-  StatusBar.SimpleText := Format('Loaded file: %s.', [fAudioFileName]);
-  stxtStatus.Caption := GetStatus();
+  butReplay.Enabled := True;
+  StatusBar.SimpleText := Format('Loaded file: %s', [fAudioFileName]);
+  stxtStatus.Caption := GetStatus();;
 end;
 
-// Called when paused.
+// Called when pauzed.
 procedure TfrmMain.HandleOnAudioPauzedEvent(Sender: TObject);
 begin
+
   butPlayPause.Caption := 'Play';
   butPlayPause.Tag := 0;
   StatusBar.SimpleText := Format('Loaded file: %s.', [fAudioFileName]);
   stxtStatus.Caption := GetStatus();
 end;
 
-
+// Not used.
 procedure TfrmMain.HandleOnVoiceProcessingPassStartEvent(Sender: TObject);
 begin
   // Stub.
 end;
 
-
+// Not used.
 procedure TfrmMain.HandleOnVoiceProcessingPassEndEvent(Sender: TObject);
 begin
   // Stub.
 end;
 
-
 // Called when all buffers have been played.
 procedure TfrmMain.HandleOnStreamEndEvent(Sender: TObject);
 begin
+
   pnlControls.Enabled := False;
   pbProgress.Enabled := False;
   butPlayPause.Enabled := False;
@@ -760,6 +865,7 @@ end;
 // Start playing engine buffer.
 procedure TfrmMain.HandleOnBufferStartEvent(Sender: TObject);
 begin
+
   butPlayPause.Enabled := True;
   butPlayPause.Caption := 'Pause';
   butPlayPause.Tag := 1;
@@ -772,8 +878,28 @@ end;
 // Called when playing an audio buffer reached the end.
 procedure TfrmMain.HandleOnBufferEndEvent(Sender: TObject);
 begin
+
   StatusBar.SimpleText := 'End of playbuffer reached.';
   stxtStatus.Caption := GetStatus();
 end;
+
+
+// initialization and finalization =============================================
+
+initialization
+
+  if FAILED(MFStartup(MF_VERSION,
+                      MFSTARTUP_LITE)) then
+      begin
+        MessageBox(0,
+                   lpcwstr('Your computer does not support this Media Foundation API version ' +
+                           IntToStr(MF_VERSION) + '.'),
+                   lpcwstr('MFStartup Failure!'),
+                           MB_ICONSTOP);
+      end;
+
+finalization
+
+  MFShutdown();
 
 end.

@@ -10,7 +10,7 @@
 // Release date: 05-01-2016
 // Language: ENU
 //
-// Revision Version: 3.1.6
+// Revision Version: 3.1.7
 // Description: MfPack Methods Library.
 //              This unit contains basic Media Foundation methods needed to play,
 //              record, encode, decode, etc.
@@ -28,14 +28,14 @@
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
-// 30/01/2024 All                 Morrissey release  SDK 10.0.22621.0 (Windows 11)
-// 11/03/2024 Tony                Changed function GetGUIDNameConst, added parameter majortype.
+// 19/06/2024 All                 RammStein release  SDK 10.0.22621.0 (Windows 11)
+// 29/05/2024
 // -----------------------------------------------------------------------------
 //
 // Remarks: Requires Windows 10 or later.
 //
 // Related objects: -
-// Related projects: MfPackX316
+// Related projects: MfPackX317
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -406,7 +406,7 @@ type
                                   out ppAggSource: IMFMediaSource): HResult;
 
   // Create a media source for the given device ID.
-  // Note: The application have to enumerate the device first.
+  // Note: The application has to enumerate the devices first.
   function CreateVideoDeviceSource(DeviceIndex: DWord;
                                    out pSource: IMFMediaSource): HResult;
 
@@ -417,7 +417,7 @@ type
 
   // Creates a sourcereader or sinkwriter depending on the given CLSID.
   function CreateReaderWriter(const clsidObject: TGUID;   // CLSID_MFSinkWriter or CLSID_MFSourceReader
-                              initSource: IMFMediaSource; // Must be the the initial MediaSource!
+                              initSource: IMFMediaSource; // Must be the initial MediaSource!
                               attributes: IMFAttributes;  // Attributes must be set before using this method!
                               out iunkObject: IUnknown): HResult;
 
@@ -513,14 +513,14 @@ type
                           out ppNode: IMFTopologyNode): HResult;  // Receives the node pointer.
 
   // Creates and initializes an output node from a stream sink.
-  function AddOutputNodeS(pTopology: IMFTopology;                   // Topology.
-                          pStreamSink: IMFStreamSink;               // Stream sink.
-                          out ppNode: IMFTopologyNode): HResult;    // Receives the node pointer.
+  function AddOutputNodeS(pTopology: IMFTopology;                 // Topology.
+                          pStreamSink: IMFStreamSink;             // Stream sink.
+                          out ppNode: IMFTopologyNode): HResult;  // Receives the node pointer.
 
-  // Creates an uotput node from a stream descriptor.
-  function CreateOutputNode(pSourceSD: IMFStreamDescriptor;
-                            hwndVideo: HWND;
-                            out ppNode: IMFTopologyNode): HResult;
+  // Creates an output node from a stream descriptor.
+  function CreateOutputNode(pSourceSD: IMFStreamDescriptor;        // Stream descriptor
+                            hwndVideo: HWND;                       // The handle of an (visual) object.
+                            out ppNode: IMFTopologyNode): HResult; // Receives the node pointer.
 
 
 
@@ -1242,7 +1242,7 @@ const
 // Misc
 // ====
 procedure CopyWaveFormatEx(const SourceFmt: WAVEFORMATEX;
-                           out DestFmt: PWAVEFORMATEX); inline;
+                           out DestFmt: PWAVEFORMATEX); //inline;
 
 // Returns 16 - bit PCM format.
 function GetDefaultWaveFmtEx(): WAVEFORMATEX; inline;
@@ -1342,10 +1342,11 @@ begin
 
   for i := 0 to Length(aVideoFormats) - 1 do
     aVideoFormats[i].Reset;
-  CoTaskMemFree(aVideoFormats);
+  aVideoFormats := nil;
+
   for i := 0 to Length(aAudioFormats) - 1 do
     aAudioFormats[i].Reset;
-  CoTaskMemFree(aAudioFormats);
+  aAudioFormats := nil;
 
 end;
 
@@ -5395,10 +5396,10 @@ begin
   else
     deviceName := friendlyName.pwszVal;
 
+  returnValue := StrNew(deviceName);
+
   PropVariantClear(friendlyName);
   CoTaskMemFree(deviceId);
-
-  returnValue := StrNew(deviceName);
 
 done:
   Result := returnValue;
@@ -6465,7 +6466,7 @@ label
 begin
   strres := 0;
 
-  hr := pSample.ConvertToContiguousBuffer(MediaBuffer);
+  hr := pSample.ConvertToContiguousBuffer(@MediaBuffer);
 
   if SUCCEEDED(hr) then
     hr := MediaBuffer.GetCurrentLength(BufferLength);
@@ -8338,13 +8339,11 @@ begin
 
   // Copy the the mft guids to array.
   SetLength(aGuidArray, iCount);
-
+  {$POINTERMATH ON}
   if SUCCEEDED(hr) then
     begin
-      {$POINTERMATH ON}
       for i := 0 to iCount -1 do
         aGuidArray[i] := ppCLSIDs[i];
-      {$POINTERMATH OFF}
     end;
 
   // Note:
@@ -8377,30 +8376,39 @@ end;
 
 
 procedure CopyWaveFormatEx(const SourceFmt: WAVEFORMATEX;
-                           out DestFmt: PWAVEFORMATEX); inline;
+                           out DestFmt: PWAVEFORMATEX); //inline;
+var
+  dFmt: PWAVEFORMATEX;
+
 begin
   // Allocate memory for DestFormat
-  GetMem(DestFmt,
+  GetMem(dFmt,
          SizeOf(WAVEFORMATEX));
 
   // Copy SourceFormat to DestFormat
   Move(SourceFmt,
-       DestFmt^,
+       dFmt^,
        SizeOf(WAVEFORMATEX));
 
-  // User is responsible to free the memory occupied by the result.
-  // Like: FreeMem(DestFmt);
+  // User is responsible to free the memory occupied by parameter DestFmt.
+  DestFmt := dFmt;
+  FreeMem(dFmt);
 end;
 
 
 function GetDefaultWaveFmtEx(): WAVEFORMATEX;
+var
+  wavFmtEx: WAVEFORMATEX;
+
 begin
-  Result.wFormatTag      := WAVE_FORMAT_PCM;
-  Result.nChannels       := 2;
-  Result.nSamplesPerSec  := 44100;
-  Result.wBitsPerSample  := 16;
-  Result.nBlockAlign     := (Result.nChannels * Result.wBitsPerSample) div 8;
-  Result.nAvgBytesPerSec := Result.nBlockAlign * Result.nSamplesPerSec;
+  wavFmtEx.wFormatTag      := WAVE_FORMAT_PCM;
+  wavFmtEx.nChannels       := 2;
+  wavFmtEx.nSamplesPerSec  := 44100;
+  wavFmtEx.wBitsPerSample  := 16;
+  wavFmtEx.nBlockAlign     := (wavFmtEx.nChannels * wavFmtEx.wBitsPerSample) div BITS_PER_BYTE;
+  wavFmtEx.nAvgBytesPerSec := wavFmtEx.nBlockAlign * wavFmtEx.nSamplesPerSec;
+  wavFmtEx.cbSize          := 0;
+  Result := wavFmtEx;
 end;
 
 

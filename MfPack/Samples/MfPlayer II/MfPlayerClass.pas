@@ -9,7 +9,7 @@
 // Release date: 05-01-2016
 // Language: ENU
 //
-// Revision Version: 3.1.6
+// Revision Version: 3.1.7
 // Description: This is the basic class of MfPlayer,
 //              containing the necessary methodes to play a mediafile
 //              For indepth information see the included examples (CPlayer)
@@ -24,13 +24,13 @@
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
-// 30/01/2024 All                 Morrissey release  SDK 10.0.22621.0 (Windows 11)
+// 19/06/2024 All                 RammStein release  SDK 10.0.22621.0 (Windows 11)
 //------------------------------------------------------------------------------
 //
 // Remarks: Requires Windows 7 or higher.
 //
 // Related objects: -
-// Related projects: MfPackX316
+// Related projects: MfPackX317
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -146,13 +146,13 @@ type
 
 type
 
-  // Note: We don't use the TInterfacedObject, because we don't want areference counting mechanism.
+  // Note: We don't use the TInterfacedObject, because we don't want a reference counting mechanism.
   // TInterfacedPersistence does not have a reference counting mechanism.
   // It delegates it to it's owner and that is what we want.
   // You may read some more about this issue here:
   // https://www.codeproject.com/Articles/1252175/Fixing-Delphis-Interface-Limitations
-  // We always free and Nil  TInterfacedPersistent when closing the app or otherwise.
-  // for this you call FInterfacedPersistent := Free and  FInterfacedPersistent := Nil or
+  // We always free and nil TInterfacedPersistent when closing the app or otherwise.
+  // for this you call FInterfacedPersistent := Free and  FInterfacedPersistent := nil or
   // use FreeAndNil(FInterfacedPersistent);
   TMfPlayer = class(TInterfacedPersistent, IMFAsyncCallback)
   private
@@ -269,7 +269,7 @@ type
     constructor Create(hwndVideo: HWND;
                        hwndSub: HWND;
                        hwndEvent: HWND;
-                       hwndMainForm: HWND);
+                       hwndMainForm: HWND); reintroduce;
     // Handle stuff before reaching Destroy
     procedure BeforeDestruction(); override;
     destructor Destroy(); override;

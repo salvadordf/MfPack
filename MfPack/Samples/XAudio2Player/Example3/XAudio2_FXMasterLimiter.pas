@@ -10,7 +10,7 @@
 // Release date: 28-03-2024
 // Language: ENU
 //
-// Revision Version: 3.1.6
+// Revision Version: 3.1.7
 // Description: XAudio2 Master limiter.
 //
 // Company: FactoryX
@@ -21,13 +21,13 @@
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
-// 30/01/2024 All                 Morrissey release  SDK 10.0.22621.0 (Windows 11)
+// 19/06/2024 All                 RammStein release  SDK 10.0.22621.0 (Windows 11)
 //------------------------------------------------------------------------------
 //
 // Remarks: Requires Windows 10 or higher.
 //
 // Related objects: -
-// Related projects: MfPackX316
+// Related projects: MfPackX317
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -64,15 +64,39 @@ unit XAudio2_FXMasterLimiter;
 interface
 
 uses
+  {WinApi}
   WinApi.Windows,
+  {System}
   System.Classes,
+  {MediaFoundationApi}
   WinApi.MediaFoundationApi.MfError,
+  {XAudio2}
   WinApi.DirectX.XAudio2.XAudio2,
+  WinApi.DirectX.XAudio2.XAPO,
   WinApi.DirectX.XAudio2.XAPOFx;
 
 
 type
-  TFxMasterLimiter = class(TObject)
+
+{
+  // Define a custom XAPO effect class
+  TMyCustomEffect = class(TInterfacedObject, IXAPOParameters)
+  public
+    // Implement methods of the IXAPOParameters interface
+    procedure SetParameters(pParameters: Pointer;
+                            ParameterByteSize: UINT32); stdcall;
+
+    procedure GetParameters(out pParameters: Pointer;
+                            ParameterByteSize: UINT32); stdcall;
+
+    procedure OnSetParameters(pParameters: Pointer;
+                              ParameterByteSize: UINT32); stdcall;
+
+  end;
+}
+
+
+  TFxMasterLimiter = class(TInterfacedObject, IXAPOParameters)
   private
     pvMasterLimiterparams: FXMASTERINGLIMITER_PARAMETERS;
 
@@ -81,12 +105,23 @@ type
     constructor Create();
     destructor Destroy(); override;
 
+    // Implement methods of the IXAPOParameters interface
+    procedure SetParameters(pParameters: Pointer;
+                            ParameterByteSize: UINT32); stdcall;
+
+    procedure GetParameters(out pParameters: Pointer;
+                            ParameterByteSize: UINT32); stdcall;
+
+    procedure OnSetParameters(pParameters: Pointer;
+                              ParameterByteSize: UINT32); stdcall;
+
+
     function CreateMasterLimiter(const pMasterLimiterParams: FXMASTERINGLIMITER_PARAMETERS): HResult;
 
   end;
 
 var
-  XAPOMasterLimiter: IUnknown;
+  XAPOMasterLimiter: IInterface;
 
 
 implementation
@@ -115,13 +150,35 @@ var
 
 begin
   // Remove previous XAPO.
-  XAPOMasterLimiter := nil;
+  if Assigned(XAPOMasterLimiter) then
+    XAPOMasterLimiter := nil;
 
   hr := CreateFX(IID_FXMasteringLimiter,
                  XAPOMasterLimiter,
                  @pMasterLimiterParams,
                  SizeOf(FXMASTERINGLIMITER_PARAMETERS));
   Result := hr;
+end;
+
+
+procedure TFxMasterLimiter.SetParameters(pParameters: Pointer;
+                                         ParameterByteSize: UINT32);
+begin
+//
+end;
+
+
+procedure TFxMasterLimiter.GetParameters(out pParameters: Pointer;
+                                         ParameterByteSize: UINT32);
+begin
+//
+end;
+
+
+procedure TFxMasterLimiter.OnSetParameters(pParameters: Pointer;
+                                           ParameterByteSize: UINT32);
+begin
+//
 end;
 
 end.

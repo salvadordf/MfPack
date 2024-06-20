@@ -10,7 +10,7 @@
 // Release date: 27-06-2012
 // Language: ENU
 //
-// Revision Version: 3.1.6
+// Revision Version: 3.1.7
 // Description: Requires Windows Vista or later.
 //              MfApi.pas is the unit containing the APIs for using the MF platform.
 //
@@ -22,7 +22,7 @@
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
-// 30/01/2024 All                 Morrissey release  SDK 10.0.22621.0 (Windows 11)
+// 19/06/2024 All                 RammStein release  SDK 10.0.22621.0 (Windows 11)
 // 11/03/2024 Tony                Fixed some issues with some video subtype guids.
 //------------------------------------------------------------------------------
 //
@@ -47,7 +47,7 @@
 //          Fields with a Common Type Specification.
 //
 // Related objects: -
-// Related projects: MfPackX316
+// Related projects: MfPackX317
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -91,7 +91,6 @@ uses
   {WinApi}
   WinApi.Windows,
   WinApi.WinApiTypes,
-  WinApi.WinMM.MMReg,
   WinApi.MediaObj,
   WinApi.AmVideo,
   WinApi.DvdMedia,
@@ -110,6 +109,9 @@ uses
   {DirectX or use rtl, Clootie Dx}
   WinApi.DirectX.DXGIFormat,
   WinApi.DirectX.D3D9Types,
+  {WinMM}
+  WinApi.WinMM.MMReg,
+  WinApi.WinMM.MMeApi,
   {MediaFoundationApi}
   WinApi.MediaFoundationApi.MfObjects;
 
@@ -2611,7 +2613,7 @@ const    // updt 090812 add
 
   // Peter
 type
-  // This function is an alias for function MAKEFOURCC defined in WinApi.MmReg.pas and WinApi.MediaFoundationApi.MfMetLib.pas
+  // This function is an alias for function MAKEFOURCC defined in WinApi.MmReg.pas
   tCh4 = array [0..3] of AnsiChar;
   function FCC(ch4: TCh4): DWord; inline;
   {$EXTERNALSYM FCC}

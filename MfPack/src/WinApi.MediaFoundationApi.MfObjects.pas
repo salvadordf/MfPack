@@ -10,7 +10,7 @@
 // Release date: 29-06-2012
 // Language: ENU
 //
-// Revision Version: 3.1.6
+// Revision Version: 3.1.7
 // Description: -
 //
 // Organisation: FactoryX
@@ -21,7 +21,7 @@
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
-// 30/01/2024 All                 Morrissey release  SDK 10.0.22621.0 (Windows 11)
+// 19/06/2024 All                 RammStein release  SDK 10.0.22621.0 (Windows 11)
 //------------------------------------------------------------------------------
 //
 // Remarks: Requires Windows Vista or higher.
@@ -34,7 +34,7 @@
 //         Fields with a Common Type Specification.
 //
 // Related objects: -
-// Related projects: MfPackX316
+// Related projects: MfPackX317
 // Known Issues: -
 //
 // Compiler version: 23 up to 33
@@ -79,7 +79,7 @@ uses
   Winapi.Windows,
   WinApi.WinApiTypes,
   WinApi.Unknwn,
-  WinApi.WinMM.MMReg,
+  WinApi.WinMM.MMeApi,
   WinApi.MediaObj,
   System.SysUtils,
   {ActiveX}
@@ -1283,26 +1283,26 @@ type
   IMFSample = interface(IMFAttributes)
   ['{c40a00f2-b93a-4d80-ae8c-5a1c634f58e4}']
 
-    function GetSampleFlags(out pdwSampleFlags: DWord): HResult; stdcall;
+    function GetSampleFlags({out} pdwSampleFlags: PDWord): HResult; stdcall;
 
     function SetSampleFlags(dwSampleFlags: DWord): HResult; stdcall;
 
-    function GetSampleTime(out phnsSampleTime: LONGLONG): HResult; stdcall;
+    function GetSampleTime({out} phnsSampleTime: PLONGLONG): HResult; stdcall;
 
     function SetSampleTime(hnsSampleTime: LONGLONG): HResult; stdcall;
 
-    function GetSampleDuration(out phnsSampleDuration: LONGLONG): HResult; stdcall;
+    function GetSampleDuration({out} phnsSampleDuration: PLONGLONG): HResult; stdcall;
 
     function SetSampleDuration(hnsSampleDuration: LONGLONG): HResult; stdcall;
     //
     // Methods to manage the sample's buffers
     //
-    function GetBufferCount(out pdwBufferCount: DWord): HResult; stdcall;
+    function GetBufferCount({out} pdwBufferCount: PDWord): HResult; stdcall;
 
     function GetBufferByIndex(dwIndex: DWord;
-                              out ppBuffer: IMFMediaBuffer): HResult; stdcall;
+                              {out} ppBuffer: PIMFMediaBuffer): HResult; stdcall;
 
-    function ConvertToContiguousBuffer(out ppBuffer: IMFMediaBuffer): HResult; stdcall;
+    function ConvertToContiguousBuffer({out} ppBuffer: PIMFMediaBuffer): HResult; stdcall;
 
     function AddBuffer(pBuffer: IMFMediaBuffer): HResult; stdcall; // If sample does not support adding buffers, it returns MF_E_SAMPLE_UNSUPPORTED_OP.
 
@@ -1310,7 +1310,7 @@ type
 
     function RemoveAllBuffers(): HResult; stdcall;
 
-    function GetTotalLength(out pcbTotalLength: DWord): HResult; stdcall;
+    function GetTotalLength({out} pcbTotalLength: PDWord): HResult; stdcall;
 
     function CopyToBuffer(pBuffer: IMFMediaBuffer): HResult; stdcall;
 

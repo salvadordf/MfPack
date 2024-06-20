@@ -10,7 +10,7 @@
 // Release date: 29-07-2012
 // Language: ENU
 //
-// Revision Version: 3.1.6
+// Revision Version: 3.1.7
 // Description: Generic converted Windows (c/cpp) types for Win32 / Win64 compatibility
 //              used by DirectX, Media Foundation, Core Audio etc.
 //
@@ -22,13 +22,13 @@
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
-// 30/01/2024 All                 Morrissey release  SDK 10.0.22621.0 (Windows 11)
+// 19/06/2024 All                 RammStein release  SDK 10.0.22621.0 (Windows 11)
 //------------------------------------------------------------------------------
 //
 // Remarks: Requires Windows Vista or later.
 //
 // Related objects: -
-// Related projects: MfPackX316
+// Related projects: MfPackX317
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -3092,6 +3092,7 @@ const ONE_MSEC_SECOND  = 1000;                  // One second = 1,000 ms
 const ONE_MHZ          = 1000000;               // One MegaHertz = 1,000,000 Hertz
 const ONE_GHZ          = ONE_MHZ * 1000;        // One GigaHertz = 1,000 MegaHertz
 
+const BITS_PER_BYTE = 8;
 
 type
   _HTMLColors = record

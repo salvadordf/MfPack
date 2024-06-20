@@ -10,7 +10,7 @@
 // Release date: 21-12-2019
 // Language: ENU
 //
-// Revision Version: 3.1.6
+// Revision Version: 3.1.7
 //
 // Description:
 //   This application demonstrates using the Media Foundation
@@ -32,7 +32,7 @@
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
-// 30/01/2024 All                 Morrissey release  SDK 10.0.22621.0 (Windows 11)
+// 19/06/2024 All                 RammStein release  SDK 10.0.22621.0 (Windows 11)
 //------------------------------------------------------------------------------
 //
 // Remarks: Requires Windows 7 or later.
@@ -82,7 +82,8 @@ uses
   WinApi.WinApiTypes,
   WinApi.WinError,
   WinApi.ComBaseApi,
-  WinApi.WinMM.MMReg,
+  {WinMM}
+  WinApi.WinMM.MMeApi,
   {Vcl}
   Vcl.Dialogs,
   {System}
@@ -298,11 +299,11 @@ begin
     begin
       pReader.Flush(MF_SOURCE_READER_ANY_STREAM);
       SafeRelease(pReader);
-      //pReader := Nil;
+      //pReader := nil;
     end;
 
   if Assigned(FCritSec) then
-    FreeAndNil(FCritSec);
+    FreeAndnil(FCritSec);
 
   wcSourceFile := nil;
   inherited BeforeDestruction();
@@ -337,8 +338,8 @@ begin
   // store the current stream index
   dwActualStreamIndex := dwStreamIndex;
   cbBuffer := 0;
-  pAudioData := Nil;
-  pBuffer := Nil;
+  pAudioData := nil;
+  pBuffer := nil;
 
   FCritSec.Lock();
 
@@ -348,19 +349,19 @@ begin
       goto done;
     end;
 
-  // If the sample is Nil, there is a gap in the data stream that can't be filled; No reason to quit though..
-  if (pSample = Nil) then
+  // If the sample is nil, there is a gap in the data stream that can't be filled; No reason to quit though..
+  if (pSample = nil) then
     goto nextsample;
 
   // Get a pointer to the audio data in the sample.
-  hr := pSample.ConvertToContiguousBuffer(pBuffer);
+  hr := pSample.ConvertToContiguousBuffer(@pBuffer);
   // or
   // hr := pSample.GetBufferByIndex(0, pBuffer);
   if FAILED(hr) then
     goto done;
 
   hr := pBuffer.Lock(pAudioData,
-                     Nil,
+                     nil,
                      @cbBuffer);
   if FAILED(hr) then
     goto done;
@@ -377,7 +378,7 @@ begin
 
   // Unlock the buffer.
   hr := pBuffer.Unlock();
-  pAudioData := Nil;
+  pAudioData := nil;
 
   if FAILED(hr) then
     goto done;
@@ -418,7 +419,7 @@ begin
   Sleep(SamplePriority);
   // or
   // MsgWaitForMultipleObjects(0,
-  //                           Nil^,
+  //                           nil^,
   //                           False,  // do NOT set this to true!
   //                           SamplePriority,
   //                           QS_ALLINPUT);
@@ -451,7 +452,7 @@ done:
     FinalizeClip(STATE_ERROR,
                  hr);
 
-  // Just Nil will do too
+  // Just nil will do too
   SafeRelease(pBuffer);
   SafeRelease(pSample);
 
@@ -622,7 +623,7 @@ begin
       hTargetFile := CreateFile(wcTargetFile,
                                 GENERIC_WRITE,
                                 FILE_SHARE_READ,
-                                Nil,
+                                nil,
                                 CREATE_ALWAYS,
                                 0,
                                 0);
@@ -821,7 +822,7 @@ var
 begin
   cbFormat := 0;
   pcbWritten := 0;
-  pWav := Nil;
+  pWav := nil;
 
   // Convert the PCM audio format into a WAVEFORMATEX structure.
   hr := MFCreateWaveFormatExFromMFMediaType(pMediaType, // Pointer to the IMFMediaType interface of the media type.
@@ -923,7 +924,7 @@ begin
 
   if (SetFilePointerEx(hTargetFile,
                        ll,
-                       Nil,
+                       nil,
                        FILE_BEGIN) = False) then
     hr := HRESULT_FROM_WIN32(GetLastError());
 
@@ -939,7 +940,7 @@ begin
 
       if (SetFilePointerEx(hTargetFile,
                            ll,
-                           Nil,
+                           nil,
                            FILE_BEGIN) = False) then
       hr := HRESULT_FROM_WIN32(GetLastError());
     end;
@@ -986,7 +987,7 @@ begin
                        p,
                        cb,
                        cbWritten,
-                       Nil);
+                       nil);
 
   if not bResult then
     begin

@@ -1,5 +1,5 @@
 # SinkWriterToEncodeVideoSample Sample 3.
-Version: X 3.1.6
+Version: X 3.1.7
 
 A VCL-based Delphi-application to encode a series of bitmaps with an audio file to 
 video using the Windows Media Foundation API.
@@ -26,7 +26,8 @@ Exceptions: - Resampling different from the input is not always supported.
 
 Usage:
 1 - Set the desired video for output (which is currently MP4 only).
-2 - Select "Include Audio", this option is not required, and select the audio encoder. 
+2 - Select "Include Audio", this option is not required, and select the audio encoder.
+    NOTE: With Windows 11 24H2 Dolby AC-3 support will be discontinued. 
 3 - Select "Create Slideshow".
 4 - Select the folder with your imagefiles (Supported are png, gif, jpeg and bitmap files)
 5 - Select the files that should be added. 
@@ -48,6 +49,6 @@ Project location: https://github.com/FactoryXCode/MfPack
                   https://sourceforge.net/projects/MFPack
 
 First release date: 24-02-2024
-Final release date: 28-03-2024
+Final release date: 30-05-2024
 
 Copyright © FactoryX. All rights reserved. 

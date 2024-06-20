@@ -10,7 +10,7 @@
 // Release date: 27-06-2012
 // Language: ENU
 //
-// Revision Version: 3.1.6
+// Revision Version: 3.1.7
 // Description: Multimedia Registration
 //
 // Organisation: FactoryX
@@ -21,14 +21,14 @@
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
-// 30/01/2024 All                 Morrissey release  SDK 10.0.22621.0 (Windows 11)
+// 19/06/2024 All                 RammStein release  SDK 10.0.22621.0 (Windows 11)
 //------------------------------------------------------------------------------
 //
 // Remarks: Delphi : The IUnknown entries of functions should be casted like this:
 //          IUnknown(Pointer), IUnknown(Object), IUnknown(Nil) etc.
 // 
 // Related objects: -
-// Related projects: MfPackX316
+// Related projects: MfPackX317
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -4018,6 +4018,12 @@ const
 
   WAVE_FORMAT_UNKNOWN                 = $0000;  { Microsoft Corporation }
   {$EXTERNALSYM WAVE_FORMAT_UNKNOWN}
+
+  // Declared afer the declaration of waveformat_tag. (See below)
+  //WAVE_FORMAT_PCM                     = $0001;  { Microsoft Corporation }
+  //{$EXTERNALSYM WAVE_FORMAT_PCM}
+
+
   WAVE_FORMAT_ADPCM                   = $0002;  { Microsoft Corporation }
   {$EXTERNALSYM WAVE_FORMAT_ADPCM}
   WAVE_FORMAT_IEEE_FLOAT              = $0003;  { Microsoft Corporation }
@@ -4602,22 +4608,18 @@ type
 
 
 {$DEFINE _WAVE_FORMAT_PCM_DEFINED}
-const WAVE_FORMAT_PCM = 1;
+const
+  WAVE_FORMAT_PCM = $0001;   { Microsoft Corporation }
+  {$EXTERNALSYM WAVE_FORMAT_PCM}
 {$ENDIF} // WAVE_FORMAT_PCM
 
 
-
-  // General extended waveform format structure
-  // Use this for all NON PCM formats
-  // (information common to all formats)
-
-type
-  // Note: The WAVEFORMATEX structure is defined in WinApi.WinMM.MMeApi.
-  PWAVEFORMATEX = ^tWAVEFORMATEX;
-  WAVEFORMATEX = tWAVEFORMATEX;
-  NPWAVEFORMATEX = ^WAVEFORMATEX;
-  LPWAVEFORMATEX = ^WAVEFORMATEX;
-  LPCWAVEFORMATEX = ^WAVEFORMATEX;
+// Note: The WAVEFORMATEX structure is defined in WinApi.WinMM.MMeApi.
+//  PWAVEFORMATEX = ^tWAVEFORMATEX;
+//  WAVEFORMATEX = tWAVEFORMATEX;
+//  NPWAVEFORMATEX = ^WAVEFORMATEX;
+//  LPWAVEFORMATEX = ^WAVEFORMATEX;
+//  LPCWAVEFORMATEX = ^WAVEFORMATEX;
 
 const
 

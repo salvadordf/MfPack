@@ -10,7 +10,7 @@
 // Release date: 02-04-2023
 // Language: ENU
 //
-// Revision Version: 3.1.6
+// Revision Version: 3.1.7
 // Description: The audio loopbackcapture engine.
 //
 // Organisation: FactoryX
@@ -29,7 +29,7 @@
 // Remarks: Requires Windows 10 or later.
 //
 // Related objects: -
-// Related projects: MfPackX316
+// Related projects: MfPackX317
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -70,6 +70,7 @@ uses
   Winapi.Messages,
   WinApi.ComBaseApi,
   Winapi.ShellAPI,
+  WinApi.WinApiTypes,
   {ActiveX}
   WinApi.ActiveX,
   {System}
@@ -85,6 +86,7 @@ uses
   Vcl.ComCtrls,
   Vcl.StdCtrls,
   Vcl.ExtCtrls,
+  Vcl.Samples.Spin,
   {MediaFoundationApi}
   WinApi.MediaFoundationApi.MfApi,
   WinApi.MediaFoundationApi.MfUtils,
@@ -110,7 +112,6 @@ type
     cbxStayOnTop: TCheckBox;
     Panel1: TPanel;
     Label1: TLabel;
-    lblFileExt: TLabel;
     edFileName: TEdit;
     cbxDontOverWrite: TCheckBox;
     butStart: TButton;
@@ -121,12 +122,13 @@ type
     Bevel3: TBevel;
     Panel3: TPanel;
     Label4: TLabel;
-    rb441b16: TRadioButton;
-    rb48b24: TRadioButton;
-    rb48b32: TRadioButton;
-    rb96b24: TRadioButton;
-    rb96b32: TRadioButton;
+    sedBufferSize: TSpinEdit;
+    Label5: TLabel;
+    cbxAutoBufferSize: TCheckBox;
     lblCaptureBufferDuration: TLabel;
+    lblBufferDuration: TLabel;
+    cbxWavFormats: TComboBox;
+    lblFileExt: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject;
                              var CanClose: Boolean);
@@ -147,6 +149,7 @@ type
     sOrgFileName: string;
     bEdited: Boolean;
     iTotalBytesWritten: Int64;
+    pvBufferDuration: REFERENCE_TIME;
     bIncludeProcessTree: Boolean;
     oLoopbackCapture: TLoopbackCapture;
     aMainProcessId: Integer;
@@ -155,6 +158,8 @@ type
     // The timer must be set to 1 millisecond resolution.
     thrTimer: TUniThreadedTimer;
     aStopWatch: TStopwatch;
+
+    procedure SetBufferDuration();
 
     // Event handlers.
     procedure OnCapturingStoppedEvent(Sender: TObject);
@@ -348,9 +353,6 @@ var
   i: Integer;
   bFileExists: Boolean;
 
-label
-  done;
-
 begin
 
   hr := S_OK;
@@ -359,7 +361,7 @@ begin
   if not Assigned(oLoopbackCapture) then
     begin
       hr := E_POINTER;
-      goto done;
+      Exit(hr);
     end;
 
   // Check for valid inputs
@@ -375,17 +377,7 @@ begin
   else if rb2.Checked then
     bIncludeProcessTree := True;
 
-  // Bitrate and resolution.
-  if rb441b16.Checked then
-    aWavFmt := fmt44100b16
-  else if rb48b24.Checked then
-    aWavFmt := fmt48000b24
-  else if rb48b32.Checked then
-    aWavFmt := fmt48000b32
-  else if rb96b24.Checked then
-    aWavFmt := fmt96000b24
-  else if rb96b32.Checked then
-    aWavFmt := fmt96000b32;
+  // Check filename.
 
   if SUCCEEDED(hr) then
     begin
@@ -424,26 +416,62 @@ begin
       butStop.Enabled := True;
       butStart.Enabled := False;
       butPlayData.Enabled := False;
+      SetBufferDuration();
+
+      // Bitrate and resolution.
+      case cbxWavFormats.ItemIndex of
+        0: aWavFmt := fmt44100b16;
+        1: aWavFmt := fmt48000b24;
+        2: aWavFmt := fmt48000b32;
+        3: aWavFmt := fmt96000b24;
+        4: aWavFmt := fmt96000b32;
+      end;
 
       // Capture the audio stream from the default rendering device.
       hr := oLoopbackCapture.StartCaptureAsync(Handle,
                                                aMainProcessId,
                                                bIncludeProcessTree,
+                                               LPCWSTR(sFileName + lblFileExt.Caption),
                                                aWavFmt,
-                                               LPCWSTR(sFileName + lblFileExt.Caption));
+                                               pvBufferDuration);
       if FAILED(hr) then
         begin
           butStop.Enabled := False;
           butStart.Enabled := True;
-          goto done;
+          Exit(hr);
         end;
 
       thrTimer.Enabled := True;
       aStopWatch.Start;
       aStopWatch.StartNew;
     end;
-done:
+
   Result := hr;
+end;
+
+
+procedure TFrmMain.SetBufferDuration();
+var
+  sms: string;
+
+begin
+
+  if cbxAutoBufferSize.Checked then
+    pvBufferDuration := 0
+  else
+    pvBufferDuration := (REFTIMES_PER_MILLISEC) * sedBufferSize.Value;
+
+  if (pvBufferDuration > REFTIMES_PER_MILLISEC) then
+    sms := 'milliseconds'
+  else
+    sms := 'millisecond';
+
+  if (pvBufferDuration = 0) then
+    lblBufferDuration.Caption := 'The audioclient will automaticly adjust the buffer duration.'
+  else
+    lblBufferDuration.Caption := Format('Capture buffer duration(%d %s)',
+                                        [sedBufferSize.Value,
+                                         sms])
 end;
 
 

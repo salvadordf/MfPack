@@ -10,7 +10,7 @@
 // Release date: 29-07-2012
 // Language: ENU
 //
-// Revision Version: 3.1.6
+// Revision Version: 3.1.7
 // Description: Common methods used by Media Foundation,
 //              Core Audio etc..
 //
@@ -22,13 +22,13 @@
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
-// 30/01/2024 All                 Morrissey release  SDK 10.0.22621.0 (Windows 11)
+// 19/06/2024 All                 RammStein release  SDK 10.0.22621.0 (Windows 11)
 //------------------------------------------------------------------------------
 //
 // Remarks: Requires Windows Vista or later.
 //
 // Related objects: -
-// Related projects: MfPackX316
+// Related projects: MfPackX317
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -77,6 +77,7 @@ uses
   {$ENDIF}
   {System}
   System.SysUtils,
+  System.WideStrUtils,
   System.UITypes,
   System.Types,
   System.SyncObjs,
@@ -1853,28 +1854,12 @@ end;
 {$WARN SYMBOL_PLATFORM ON}
 
 
-// Simplified helper of StringToWideChar function
+// Keep for previous versions;
 function StrToPWideChar(source: string): PWideChar;// inline;
-var
-  pwResult: PWideChar;
-
 begin
-  // Important note to string to PWideChar conversions
-  //==================================================
-  // To prevent error $80070002 (The system cannot find the file specified.), you
-  // should use this function instead of using typecast PWideChar(stringvalue)!!!
-  GetMem(pwResult,
-         (Length(source) +1) * SizeOf(PWideChar));
-  try
-    StringToWideChar(source,
-                     pwResult,
-                     Length(source) +1); // +1 because a pending 0 is added
-  finally
-    //
-    Result := pwResult;
-    FreeMem(pwResult);
-  end;
+  Result := PWideChar(source);
 end;
+
 
 // FOURCC functions
 

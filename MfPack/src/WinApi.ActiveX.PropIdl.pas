@@ -10,7 +10,7 @@
 // Release date: 27-06-2012
 // Language: ENU
 //
-// Revision Version: 3.1.6
+// Revision Version: 3.1.7
 // Description: Structured Storage.
 //
 // Organisation: FactoryX
@@ -21,7 +21,7 @@
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
-// 30/01/2024 All                 Morrissey release  SDK 10.0.22621.0 (Windows 11)
+// 19/06/2024 All                 RammStein release  SDK 10.0.22621.0 (Windows 11)
 //------------------------------------------------------------------------------
 //
 // Remarks: Requires Windows Vista or later.
@@ -31,7 +31,7 @@
 //          In that case you may whish to include WinApi.ActiveX for an MFPack unit and change the PROPVARIANT with the ActiveX tagPROPVARIANT.
 //
 // Related objects: -
-// Related projects: MfPackX316
+// Related projects: MfPackX317
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -927,7 +927,7 @@ type
 
   // Not included in Ole32.dll or defined in this unit,
   // This function (and PropVariantClear) are defined in PropSys.pas
-  //procedure PropVariantInit(out pv: TMfPPROPVARIANT);
+  // procedure PropVariantInit(out pvar: PROPVARIANT);
 
 
   function StgCreatePropStg(pUnk: IUnknown;
@@ -978,7 +978,7 @@ type
   // Additional Prototypes for ALL interfaces
 
   // Forward functions
-  procedure PropVariantInit(var pv: PROPVARIANT); inline;
+  procedure PropVariantInit(out pvar: PROPVARIANT); inline;
   procedure PropVariantClearSafe(var pv: PROPVARIANT); inline;
   //procedure PropVariantClear(var pv: TMfPROPVARIANT);
 
@@ -1006,18 +1006,19 @@ const
   end;
 
 
+procedure PropVariantInit(out pvar: PROPVARIANT);
+begin
+  FillChar(pvar, SizeOf(PROPVARIANT), 0);
+end;
+
+
+procedure PropVariantClearSafe(var pv: PROPVARIANT);
+begin
+  ZeroMemory(@pv, SizeOf(pv));
+end;
+
 
   //--------------------- External definitions ---------------------------------
-  
-  procedure PropVariantInit(var pv: PROPVARIANT);
-    begin
-      FillChar(pv, sizeof(PROPVARIANT), 0);
-    end;
-
-  procedure PropVariantClearSafe(var pv: PROPVARIANT);
-    begin
-      ZeroMemory(@pv, SizeOf(pv));
-    end;
     
 {$WARN SYMBOL_PLATFORM OFF}
   function PropVariantCopy;             external PropIdlLib name 'PropVariantCopy' {$IF COMPILERVERSION > 20.0} delayed {$ENDIF};

@@ -10,7 +10,7 @@
 // Release date: 27-06-2012
 // Language: ENU
 //
-// Revision Version: 3.1.6
+// Revision Version: 3.1.7
 // Description: -
 //
 // Organisation: FactoryX
@@ -21,7 +21,7 @@
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
-// 30/01/2024 All                 Morrissey release  SDK 10.0.22621.0 (Windows 11)
+// 19/06/2024 All                 RammStein release  SDK 10.0.22621.0 (Windows 11)
 //------------------------------------------------------------------------------
 //
 // Remarks: Pay close attention for supported platforms (ie Vista or Win 7/8/8.1/10).
@@ -33,7 +33,7 @@
 //          Requires Windows Vista or later.
 //
 // Related objects: -
-// Related projects: MfPackX316
+// Related projects: MfPackX317
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -514,6 +514,7 @@ type
                       {In_opt} pActivationParams: PPROPVARIANT;
                       out ppInterface: Pointer): HResult; stdcall;  // Replaced IUNKOWN pointer to a pointer, as described on ms-docs:
                                                                     // https://learn.microsoft.com/en-us/windows/win32/api/mmdeviceapi/nf-mmdeviceapi-immdevice-activate
+                                                                    // So, you have to cast the result like this: Pointer(YourInterface).
     function OpenPropertyStore(stgmAccess: DWORD;
                                out ppProperties: IPropertyStore): HResult; stdcall;
     // Parameter stgmAccess declares the storage-access mode.

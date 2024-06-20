@@ -10,7 +10,7 @@
 // Release date: 04-05-2012
 // Language: ENU
 //
-// Revision Version: 3.1.6
+// Revision Version: 3.1.7
 // Description: MMDevApiUtils, Device api helper routines >= Win 8
 //
 // Organisation: FactoryX
@@ -21,7 +21,8 @@
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
-// 30/01/2024 All                 Morrissey release  SDK 10.0.22621.0 (Windows 11)
+// 19/06/2024 All                 RammStein release  SDK 10.0.22621.0 (Windows 11)
+// 28/05/2024 Tony                Added funtion GetDeviceDataFlow.
 //------------------------------------------------------------------------------
 //
 // Remarks: Pay close attention for supported platforms (ie Vista or Win 7/8/8.1/10).
@@ -32,7 +33,7 @@
 //          Requires Windows Vista or later.
 //
 // Related objects: -
-// Related projects: MfPackX316
+// Related projects: MfPackX317
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -41,7 +42,7 @@
 // Todo: -
 //
 //==============================================================================
-// Source: https://docs.microsoft.com/en-us/windows/win32/coreaudio/device-roles-for-directsound-applications
+// Source: https://learn.microsoft.com/en-us/windows/win32/coreaudio/interoperability-with-legacy-audio-apis
 //
 // Copyright (c) Microsoft Corporation. All rights reserved.
 //==============================================================================
@@ -134,31 +135,20 @@ type
   {$NODEFINE PEndPointDevice}
   _EndPointDevice = record
    {Device Properties}
-   DevInterfaceName: LPWSTR;  // The friendly name of the audio adapter to which the endpoint device is attached (for example, "XYZ Audio Adapter").
-   DeviceDesc: LPWSTR;        // The device description of the endpoint device (for example, "Speakers").
-   DeviceName: LPWSTR;        // The friendly name of the endpoint device (for example, "Speakers (XYZ Audio Adapter)").
-   pwszID: LPWSTR;            // Internal ID.
-   dwState: DWord;            // State of the device (disconnected, active, unplugged or not present)
-   sState: string;            // State of the device in readable string
-   iID: Integer;              // Device index ID, starting with 0
-   DataFlow: EDataFlow;       // eRender or eCapture.
+    DevInterfaceName: LPWSTR;  // The friendly name of the audio adapter to which the endpoint device is attached (for example, "XYZ Audio Adapter").
+    DeviceDesc: LPWSTR;        // The device description of the endpoint device (for example, "Speakers").
+    DeviceName: LPWSTR;        // The friendly name of the endpoint device (for example, "Speakers (XYZ Audio Adapter)").
+    pwszID: LPWSTR;            // Internal ID.
+    dwState: DWord;            // State of the device (disconnected, active, unplugged or not present).
+    sState: string;            // State of the device in readable string.
+    iID: Integer;              // Device index ID, starting with 0.
+    DataFlow: EDataFlow;       // eRender or eCapture.
+    Device: IMMDevice;         // Device interface.
   end;
   EndPointDevice = _EndPointDevice;
   TEndPointDevice = _EndPointDevice;
 
   TEndPointDeviceArray = array of TEndPointDevice;
-
-
-  // The following enum is stripped, to prevent users select not allowed members of
-  // EDataFlow when querying or setting endpoint-devices.
-  // When EDataFlow parameters are clashing with the stripped enum,
-  // you have to cast those like: EDataFlow(eRender) etc.
-
-  // Stripped EDataFlow
-  EDataFlowEx = (
-    eRender              = 0,
-    eCapture             = (eRender + 1)
-                );
 
 type
  //-----------------------------------------------------------
@@ -171,7 +161,7 @@ type
  //   https://docs.microsoft.com/en-us/windows/win32/coreaudio/audio-events-for-legacy-audio-applications
  //-----------------------------------------------------------
 
-TAudioVolumeEvents = class(TObject)
+  TAudioVolumeEvents = class(TObject)
   private
     hrStatus: HRESULT;
     pManager: IAudioSessionManager;
@@ -193,7 +183,7 @@ TAudioVolumeEvents = class(TObject)
   //-----------------------------------------------------------
   // Get endpoint devices
   //
-  // This function enumerates all audio rendering endpoint devices.
+  // This function enumerates all audio rendering or capture endpoint devices.
   // It returns an array of TEndPointDevice.
   // Params:
   //   {in}     flow: eRender or eCapture
@@ -201,7 +191,7 @@ TAudioVolumeEvents = class(TObject)
   //   {out}    endpointdevices: Returns an array of TEndPointDevices.
   //   {out}    Number of endpoints returned.
   //-----------------------------------------------------------
-  function GetEndpointDevices(const flow: EDataFlowEx;
+  function GetEndpointDevices(const flow: EDataFlow;
                               state: DWord;
                               out endpointdevices: TEndPointDeviceArray;
                               out devicesCount: DWord): HRESULT;
@@ -214,7 +204,7 @@ TAudioVolumeEvents = class(TObject)
 
   function GetDefaultEndPointAudioDevice(out audioEndPoint: IMMDevice;
                                          Role: eRole = eMultimedia;
-                                         dataFlow: EDataFlowEx = eRender): HRESULT;
+                                         dataFlow: EDataFlow = eRender): HRESULT;
 
   // Get the device descriptions of a device
   function GetDeviceDescriptions(DefaultDevice: IMMDevice; // the zero based index, where 0 is the default (active) endpoint.
@@ -294,6 +284,12 @@ TAudioVolumeEvents = class(TObject)
   //-----------------------------------------------------------
   function GetJackInfo(pDevice: IMMDevice;
                        out ppJackDesc: IKsJackDescription): HResult;
+
+  //-----------------------------------------------------------
+  // Get the dataflow direction of an endpoint device.
+  //-----------------------------------------------------------
+  function GetDeviceDataFlow(pDevice: IMMDevice;
+                             out pDataFlow: eDataFlow): HResult;
 
 
 implementation
@@ -433,7 +429,7 @@ end;
 //                                                         DEVICE_STATE_UNPLUGGED
 // endpointdevices: Dynamic array that holds EndPointDevice properties.
 // devicesCount: Number of specified devices found
-function GetEndpointDevices(const flow: EDataFlowEx;
+function GetEndpointDevices(const flow: EDataFlow;
                             state: DWord;
                             out endpointdevices: TEndPointDeviceArray;
                             out devicesCount: DWord): HRESULT;
@@ -476,7 +472,7 @@ begin
                            IID_IMMDeviceEnumerator,
                            pEnumerator));
 
-  CheckHr(pEnumerator.EnumAudioEndpoints(EDataFlow(flow),
+  CheckHr(pEnumerator.EnumAudioEndpoints(flow,
                                          state,
                                          pCollection));
 
@@ -533,7 +529,7 @@ begin
       endpointdevices[i].sState := GetDeviceStateAsString(dwState);
       endpointdevices[i].iID := i;
       endpointdevices[i].DataFlow := EDataFlow(flow);
-
+      endpointdevices[i].Device := pEndpoint;
       SafeRelease(pProps);
       SafeRelease(pEndpoint);
     end;
@@ -551,7 +547,7 @@ end;
 // rendering an audio stream.
 function GetDefaultEndPointAudioDevice(out audioEndPoint: IMMDevice;
                                        Role: eRole = eMultimedia;
-                                       dataFlow: EDataFlowEx = eRender): HRESULT;
+                                       dataFlow: EDataFlow = eRender): HRESULT;
 var
   pdeviceEnumerator: IMMDeviceEnumerator;
   hr: HRESULT;
@@ -570,8 +566,8 @@ try
 
   if (dataFlow = eRender) or (dataFlow = eCapture) then  // Can only be eRender or eCapture
     begin
-      hr := pdeviceEnumerator.GetDefaultAudioEndpoint(EDataFlow(dataFlow),
-                                                      ERole(Role),
+      hr := pdeviceEnumerator.GetDefaultAudioEndpoint(dataFlow,
+                                                      Role,
                                                       audioEndPoint);
       if Failed(hr) then
         Abort;
@@ -807,11 +803,11 @@ label
 
 begin
 
-  pstrEndpointIdKey := Nil;
+  pstrEndpointIdKey := nil;
   pstrEndpointId := Nil;
   cbEndpointId := 0;
 
-  if (pWaveOutId = Nil) then
+  if (pWaveOutId = nil) then
     begin
       Result:= E_POINTER;
       Exit;
@@ -819,7 +815,7 @@ begin
 
   // Create an audio endpoint device enumerator.
   hr := CoCreateInstance(IID_IMMDeviceEnumerator,
-                         Nil,
+                         nil,
                          CLSCTX_INPROC_SERVER,
                          IID_IMMDeviceEnumerator,
                          pEnumerator);
@@ -829,7 +825,7 @@ begin
   // Get the audio endpoint device that the user has
   // assigned to the specified device role.
   hr := pEnumerator.GetDefaultAudioEndpoint(EDataFlow(eRender),
-                                            ERole(role),
+                                            role,
                                             pDevice);
   if Failed(hr) then
     goto leave;
@@ -847,7 +843,7 @@ begin
 
   // Allocate a buffer for a second string of the same size.
   pstrEndpointId := CoTaskMemAlloc(cbEndpointIdKey);
-  if (pstrEndpointId = Nil) then
+  if (pstrEndpointId = nil) then
     begin
       hr := E_OUTOFMEMORY;
       goto leave;
@@ -973,6 +969,25 @@ begin
   ppJackDesc := pJackDesc;
 
 leave:
+  Result := hr;
+end;
+
+
+function GetDeviceDataFlow(pDevice: IMMDevice;
+                           out pDataFlow: eDataFlow): HResult;
+var
+  hr: HResult;
+  endPoint: IMMEndpoint;
+
+begin
+
+  // Query for IMMEndpoint.
+  hr := pDevice.QueryInterface(IID_IMMEndpoint,
+                               IUnknown(endPoint));
+
+  if SUCCEEDED(hr) then
+    hr := endPoint.GetDataFlow(pDataFlow);
+
   Result := hr;
 end;
 

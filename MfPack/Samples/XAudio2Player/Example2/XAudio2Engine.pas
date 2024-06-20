@@ -10,7 +10,7 @@
 // Release date: 30-03-2024
 // Language: ENU
 //
-// Revision Version: 3.1.6
+// Revision Version: 3.1.7
 // Description: The XAudio2 renderer class.
 //
 // Company: FactoryX
@@ -21,13 +21,13 @@
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
-// 30/01/2024 All                 Morrissey release  SDK 10.0.22621.0 (Windows 11)
+// 19/06/2024 All                 RammStein release  SDK 10.0.22621.0 (Windows 11)
 //------------------------------------------------------------------------------
 //
 // Remarks: Requires Windows 7 or higher.
 //
 // Related objects: -
-// Related projects: MfPackX316
+// Related projects: MfPackX317
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -88,8 +88,7 @@ uses
   WinApi.DirectX.XAudio2.XAPO,
   WinApi.DirectX.XAudio2.X3DAudio,
   {WinMM}
-  // WinApi.WinMM.MMSystem,
-  WinApi.WinMM.MMReg,
+  WinApi.WinMM.MMeApi,
   Tools;
 
 const
@@ -100,6 +99,9 @@ const
   // Minimum and maximum pitch values.
   MIN_PITCH = 0.4;
   MAX_PITCH = 2.0;
+  // Minimum and maximum volume values.
+  MIN_VOLUME = 0.0;
+  MAX_VOLUME = 244.0;
 
 type
 
@@ -204,7 +206,9 @@ begin
     begin
       pvXAudio2.StopEngine();
       pvMasteringVoice.DestroyVoice();
-      pvMasteringVoice.DestroyVoice();
+      pvSourceVoice.DestroyVoice();
+      pvSourceVoice := nil;
+      pvMasteringVoice := nil;
       SafeRelease(pvXAudio2);
     end;
   FLock.Free; // Free the critical section object.
@@ -222,7 +226,7 @@ var
   nativeMediaType: IMFMediaType;
   majorType: TGUID;
   subType: TGUID;
-  partialType,
+  partialType: IMFMediaType;
   uncompressedAudioType: IMFMediaType;
 
   sample: IMFSample;
@@ -329,15 +333,16 @@ begin
     nSamplesPerSecond := MFGetAttributeUINT32(uncompressedAudioType,
                                               MF_MT_AUDIO_SAMPLES_PER_SECOND,
                                               UINT32(0));
-  // Createt sample.
+  // Create sample.
   if SUCCEEDED(hr) then
     SetLength(pvBytes,
               0);
 
-
   while (hr = S_OK) do
     begin
+      Sleep(0);
       flags := 0;
+
       hr := sourceReader.ReadSample(MF_SOURCE_READER_FIRST_AUDIO_STREAM,
                                     0,
                                     nil,
@@ -345,16 +350,27 @@ begin
                                     nil,
                                     @sample);
 
-      // Check for eof
-      if ((flags and MF_SOURCE_READERF_ENDOFSTREAM) <> 0) then
+      // To be on the safe side we check all flags for which
+      // further reading would not make any sense
+      // and set EndOfFile to True
+      if ((flags and MF_SOURCE_READERF_ENDOFSTREAM) <> 0) or
+         ((flags and MF_SOURCE_READERF_ERROR) <> 0) or
+         ((flags and MF_SOURCE_READERF_NEWSTREAM) <> 0) or
+         ((flags and MF_SOURCE_READERF_NATIVEMEDIATYPECHANGED) <> 0) or
+         ((flags and MF_SOURCE_READERF_ALLEFFECTSREMOVED) <> 0) then
+      begin
         Break;
+      end;
 
       // If the sample is nil, there is a gap in the data stream that can't be filled: No reason to quit..
       if (sample = nil) then
         Continue;
 
+     if (flags = MF_SOURCE_READERF_STREAMTICK) then
+       Continue;
+
       // Convert data to contiguous buffer.
-      hr := sample.ConvertToContiguousBuffer(buffer);
+      hr := sample.ConvertToContiguousBuffer(@buffer);
 
       // Lock Buffer and copy to local memory
       if SUCCEEDED(hr) then
@@ -368,7 +384,6 @@ begin
           SetLength(pvBytes,
                     Length(pvBytes) + Integer(audioDataLength));
 
-
           Move(audioData^,
                pvBytes[Length(pvBytes) - Integer(audioDataLength)],
                audioDataLength);
@@ -376,7 +391,7 @@ begin
         finally
           hr := buffer.Unlock();
         end;
-      SafeRelease(sample);
+      sample := nil;
     end;
 
   // Create Xaudio2 and run audio.
@@ -385,7 +400,6 @@ begin
 
 done:
   Result := hr;
-
 end;
 
 
@@ -402,7 +416,7 @@ begin
   bReady := False;
 
   // Use the XAudio2Create function to create an instance of the XAudio2 engine.
-  hr := XAudio2Create(pvXAudio2,
+  hr := XAudio2Create(@pvXAudio2,
                       0,
                       XAUDIO2_DEFAULT_PROCESSOR);
   if FAILED(hr) then
@@ -412,18 +426,17 @@ begin
   //
   // The mastering voices encapsulates an audio device.
   // It is the ultimate destination for all audio that passes through an audio graph.
-  hr := pvXAudio2.CreateMasteringVoice(pvMasteringVoice);
+  hr := pvXAudio2.CreateMasteringVoice(@pvMasteringVoice);
   if FAILED(hr) then
     goto done;
 
-  hr := pvXAudio2.CreateSourceVoice(pvSourceVoice,
+  hr := pvXAudio2.CreateSourceVoice(@pvSourceVoice,
                                     pvWaveformatex,
                                     0,
                                     XAUDIO2_DEFAULT_FREQ_RATIO,
                                     Self); // register Audio2VoiceCallback
   if FAILED(hr) then
     goto done;
-
 
   // Set up XAudio2 buffer.
   ZeroMemory(@pvXAudioBuffer,
@@ -562,8 +575,8 @@ begin
   // Set boundaries to prevent overflow or clipping
   for i := 0 to Length(aVolumes) - 1 do
     begin
-      if aVolumes[i] > 1.0 then
-        aVolumes[i] := 1.0;
+      if aVolumes[i] > XAUDIO2_MAX_VOLUME_LEVEL then
+        aVolumes[i] := XAUDIO2_MAX_VOLUME_LEVEL;
       if aVolumes[i] < 0.0 then
         aVolumes[i] := 0.0;
     end;
@@ -597,6 +610,7 @@ end;
 procedure TXaudio2Engine.SetPitch(aValue: Single);
 var
   flPitch: Single;
+
 begin
   FLock.Enter;
   flPitch := aValue;

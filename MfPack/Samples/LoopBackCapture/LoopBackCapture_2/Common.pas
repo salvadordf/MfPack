@@ -10,7 +10,7 @@
 // Release date: 02-04-2023
 // Language: ENU
 //
-// Revision Version: 3.1.6
+// Revision Version: 3.1.7
 // Description: Helpers.
 //
 // Organisation: FactoryX
@@ -28,7 +28,7 @@
 // Remarks: Requires Windows 10 or later.
 //
 // Related objects: -
-// Related projects: MfPackX316
+// Related projects: MfPackX317
 // Known Issues: -
 //
 // Compiler version: 23 up to 35
@@ -79,9 +79,6 @@ uses
   // Undefine this when not needed!
   {$DEFINE SHOW_IN_MESSAGES_IDE}
 
-const
-  AUDIO_BUFFER_FMT = 10000000;
-
   // Simple error message handler that reports by default in the IDE Messages screen or
   // shows a messagedialog at runtime.
   procedure ErrMsg(pErrMsg: string;
@@ -97,7 +94,6 @@ const
   procedure SortStringgrid(Grid: TStringGrid;
                            byColumn: LongInt;
                            ascending: Boolean );
-
 
 
 implementation
