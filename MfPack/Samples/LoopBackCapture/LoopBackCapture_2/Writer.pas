@@ -21,7 +21,7 @@
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
-// 30/01/2024 All                 Morrissey release  SDK 10.0.22621.0 (Windows 11)
+// 19/06/2024 All                 Rammstein release  SDK 10.0.22621.0 (Windows 11)
 //------------------------------------------------------------------------------
 //
 // Remarks: -
@@ -80,6 +80,7 @@ uses
   WinApi.MediaFoundationApi.MfUtils;
 
 const
+  // Maximum filesize in 32bit environments.
   MAX_FILE_SIZE = 3900000000;
 
   // WAV fileheader identifiers.
@@ -293,7 +294,7 @@ begin
   if (MMSYSERR_NOERROR <> mResult) then
     Exit(mResult);
 
-  // Close the file handle.
+  // Close the file.
   mResult := mmioClose(hmFile,
                        0);
   if (MMSYSERR_NOERROR <> mResult) then

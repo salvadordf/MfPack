@@ -21,7 +21,7 @@
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
-// 30/01/2024 All                 Morrissey release  SDK 10.0.22621.0 (Windows 11)
+// 19/06/2024 All                 Rammstein release  SDK 10.0.22621.0 (Windows 11)
 //------------------------------------------------------------------------------
 //
 // Remarks: -
@@ -80,7 +80,7 @@ uses
   WinApi.MediaFoundationApi.MfUtils;
 
 const
-  MAX_FILE_SIZE = 3900000000;
+  MAX_FILE_SIZE = 4294960000; // 4294967296 - 7296 keep some overhead.
 
   // WAV fileheader identifiers.
   // FOURCC_RIFF is declared in WinApi.WinMM.MMiscApi.
@@ -148,8 +148,8 @@ uses
 
 constructor TWavWriter.Create();
 begin
-
   inherited Create();
+
 end;
 
 
@@ -342,7 +342,7 @@ begin
   pBytesWritten := bytesWritten;
 
   // For safety on 32bit platforms we have to limit the wav size to < 4 gb.
-  // So, we limit the size to 3.9 GB. because we don't know how large the last buffer will be.
+  // So, we limit the size to 4294967296 - 7296 bytes, because we don't know how large the last buffer will be.
   if (pvTotalBytesWritten > MAX_FILE_SIZE) then
     begin
       // Close the file.

@@ -69,8 +69,6 @@ object MainForm: TMainForm
     ParentFont = False
     TabOrder = 1
     VerticalAlignment = taAlignTop
-    ExplicitTop = 224
-    ExplicitWidth = 471
     object lblBufferDuration: TLabel
       Left = 69
       Top = 50
@@ -175,8 +173,6 @@ object MainForm: TMainForm
     ParentFont = False
     TabOrder = 0
     VerticalAlignment = taAlignTop
-    ExplicitTop = 1
-    ExplicitWidth = 471
     object Label4: TLabel
       Left = 7
       Top = 68

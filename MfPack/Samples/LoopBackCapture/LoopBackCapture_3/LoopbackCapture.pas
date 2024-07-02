@@ -5,7 +5,7 @@
 // Project: MfPack - CoreAudio - Shared
 // Project location: https://sourceforge.net/projects/MFPack
 //                   https://github.com/FactoryXCode/MfPack
-// Module: WASCapture_v3.pas
+// Module: LoopBackCapture.pas
 // Kind: Pascal / Delphi unit
 // Release date: 15-06-2024
 // Language: ENU
@@ -59,7 +59,7 @@
 // their product.
 //
 //==============================================================================
-unit ThreadedWASLoopbackCapture;
+unit LoopbackCapture;
 
 interface
 
@@ -130,6 +130,8 @@ type
     pvRenderThreadClosedEvent: THandle;
     pvShutdownEvent: THandle;
     pvAudioSamplesReadyEvent: THandle;
+
+    pvOnCapturingStart: TNotifyEvent;
     pvOnCapturingStopped: TNotifyEvent;
 
     //
@@ -261,7 +263,8 @@ type
 
     property DeviceState: TDeviceState read pvDeviceState;
 
-    // Notify event.
+    // Notify events.
+    property OnStartCapturing: TNotifyEvent read pvOnCapturingStart write pvOnCapturingStart;
     property OnStoppedCapturing: TNotifyEvent read pvOnCapturingStopped write pvOnCapturingStopped;
   end;
 
@@ -1151,6 +1154,8 @@ begin
       Exit(False);
     end;
 
+  // Notify the mainform to start it's timer.
+  pvOnCapturingStart(Self);
   Result := True;
 end;
 
