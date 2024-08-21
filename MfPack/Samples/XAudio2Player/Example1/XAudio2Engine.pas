@@ -22,9 +22,10 @@
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
 // 30/06/2024 All                 RammStein release  SDK 10.0.26100.0 (Windows 11)
+// 06/08/2024                     Added threading and solved some close issues.
 //------------------------------------------------------------------------------
 //
-// Remarks: Requires Windows 7 or higher.
+// Remarks: Requires Windows 8 or higher.
 //
 // Related objects: -
 // Related projects: MfPackX317
@@ -95,9 +96,13 @@ const
   WM_DATA_READY_NOTIFY = WM_APP + 101;
   WM_DATA_ENDED_NOTIFY = WM_APP + 102;
 
+var
+  pvCriticalSection: TRTLCriticalSection;
+
 type
 
-  TXaudio2Engine = class
+  TXaudio2Engine = class(TObject)
+
   private
     pvXAudio2: IXAudio2;
     pvMasteringVoice: IXAudio2MasteringVoice;
@@ -118,7 +123,7 @@ type
 
     constructor Create();
     destructor Destroy(); override;
-
+    procedure BeforeDestruction(); override;
 
     function LoadFile(hHwnd: HWND;
                       const audiofile: TFileName;
@@ -138,6 +143,8 @@ type
 
     property SoundChannels: UINT32 read nChannels;
     property Volumes: TFloatArray read m_VolumeChannels write SetVolumes;
+    property IsPlaying: Boolean read bPlaying;
+
   end;
 
 
@@ -154,18 +161,23 @@ end;
 destructor TXaudio2Engine.Destroy();
 begin
 
+  pvMasteringVoice := nil;
+  pvSourceVoice := nil;
+  SafeRelease(pvXAudio2);
+  inherited;
+end;
+
+
+procedure TXaudio2Engine.BeforeDestruction();
+begin
   bPlaying := False;
   if Assigned(pvXAudio2) then
     begin
       pvXAudio2.StopEngine();
-      pvMasteringVoice.DestroyVoice();
       pvSourceVoice.DestroyVoice();
-      pvMasteringVoice := nil;
-      pvSourceVoice := nil;
-      SafeRelease(pvXAudio2);
+      pvMasteringVoice.DestroyVoice();
     end;
-
-  inherited;
+  inherited BeforeDestruction();
 end;
 
 
@@ -181,12 +193,6 @@ var
   subType: TGUID;
   partialType,
   uncompressedAudioType: IMFMediaType;
-
-  sample: IMFSample;
-  flags: DWORD;
-  buffer: IMFMediaBuffer;
-  audioData: PByte;
-  audioDataLength: DWORD;
 
 label
   done;
@@ -231,7 +237,6 @@ begin
        raise Exception.CreateFmt('%s is not an audio file',
                                  [pvFileName]);
      end;
-
 
   // Check if media file is compressed or uncompressed.
   hr := nativeMediaType.GetGUID(MF_MT_SUBTYPE,
@@ -286,51 +291,65 @@ begin
     nSamplesPerSecond := MFGetAttributeUINT32(uncompressedAudioType,
                                               MF_MT_AUDIO_SAMPLES_PER_SECOND,
                                               UINT32(0));
-  // Createt sample.
+  // Create sample.
   if SUCCEEDED(hr) then
     SetLength(pvBytes,
-              0);
+              0)
+  else
+    goto done;
 
-  while (hr = S_OK) do
-    begin
-      flags := 0;
-      hr := sourceReader.ReadSample(MF_SOURCE_READER_FIRST_AUDIO_STREAM,
-                                    0,
-                                    nil,
-                                    @flags,
-                                    nil,
-                                    @sample);
+  // Fill the buffer. We use a thread for this, to speedup things.
+  TThread.Synchronize(nil,
+                      procedure
+                      var
+                        hres: HResult;
+                        sample: IMFSample;
+                        flags: DWord;
+                        buffer: IMFMediaBuffer;
+                        audioData: PByte;
+                        audioDataLength: DWord;
 
-      // Check for eof
-      if ((flags and MF_SOURCE_READERF_ENDOFSTREAM) <> 0) then
-        Break;
+                        begin
+                          hres := S_OK;
+                          while (hres = S_OK) do
+                            begin
+                              flags := 0;
+                              hres := sourceReader.ReadSample(MF_SOURCE_READER_FIRST_AUDIO_STREAM,
+                                                              0,
+                                                              nil,
+                                                              @flags,
+                                                              nil,
+                                                              @sample);
 
-      // If the sample is nil, there is a gap in the data stream that can't be filled: No reason to quit..
-      if (sample = nil) then
-        Continue;
+                              // Check for eof
+                              if ((flags and MF_SOURCE_READERF_ENDOFSTREAM) <> 0) then
+                                Break;
 
-      // Convert data to contiguous buffer.
-      hr := sample.ConvertToContiguousBuffer(@buffer);
+                              // If the sample is nil, there is a gap in the data stream that can't be filled: No reason to quit..
+                              if (sample = nil) then
+                                Continue;
 
-      // Lock Buffer and copy to local memory
-      if SUCCEEDED(hr) then
-        hr := buffer.Lock(audioData,
-                          nil,
-                          @audioDataLength);
+                              // Convert data to contiguous buffer.
+                              hres := sample.ConvertToContiguousBuffer(@buffer);
 
-      if SUCCEEDED(hr) then
-        try
-          SetLength(pvBytes,
-                    Length(pvBytes) + Integer(audioDataLength));
+                              // Lock Buffer and copy to local memory
+                              hres := buffer.Lock(audioData,
+                                                  nil,
+                                                  @audioDataLength);
 
-          Move(audioData^,
-               pvBytes[Length(pvBytes) - Integer(audioDataLength)],
-               audioDataLength);
-        finally
-          hr := buffer.Unlock();
-        end;
-      SafeRelease(sample);
-    end;
+                              try
+                                SetLength(pvBytes,
+                                          Length(pvBytes) + Integer(audioDataLength));
+
+                                Move(audioData^,
+                                     pvBytes[Length(pvBytes) - Integer(audioDataLength)],
+                                     audioDataLength);
+                              finally
+                                hres := buffer.Unlock();
+                              end;
+                              SafeRelease(sample);
+                            end;
+                        end);
 
   // Create Xaudio2 and run audio.
   hr := InitializeXAudio2();
@@ -343,15 +362,11 @@ end;
 function TXaudio2Engine.InitializeXAudio2(replay: Boolean = False): HResult;
 var
   hr: HResult;
-  voiceState: XAUDIO2_VOICE_STATE;
-  bReady: Boolean;
 
 label
   done;
 
 begin
-
-  bReady := False;
 
   // Use the XAudio2Create function to create an instance of the XAudio2 engine.
   hr := XAudio2Create(@pvXAudio2,
@@ -369,7 +384,8 @@ begin
     goto done;
 
   hr := pvXAudio2.CreateSourceVoice(@pvSourceVoice,
-                                    pvWaveformatex);
+                                    pvWaveformatex,
+                                    0);
   if FAILED(hr) then
     goto done;
 
@@ -387,11 +403,6 @@ begin
   if FAILED(hr) then
     goto done;
 
-  SendMessage(hwndCaller,
-              WM_DATA_READY_NOTIFY,
-              WPARAM(1),
-              LPARAM(0));
-
   // This flag should be set if we played this track before,
   // so we don't have to reinitialize the sourcereader.
   if replay then
@@ -402,22 +413,35 @@ begin
 
   bPlaying := True;
 
-  while not bReady and bPlaying do
-    begin
-      pvSourceVoice.GetState(voiceState,
-                             0);
+  // Signal we are ready to go.
+  SendMessage(hwndCaller,
+              WM_DATA_READY_NOTIFY,
+              WPARAM(1),
+              LPARAM(0));
 
-      // Send score. Don't use PostMessage because it set priority above this thread.
-      SendMessage(hwndCaller,
-                  WM_DATA_PROCESSED_NOTIFY,
-                  WPARAM((voiceState.SamplesPlayed div nSamplesPerSecond) * 10000000),
-                  LPARAM(voiceState.SamplesPlayed));
+  // While the audio is rendering, keep track of the position and samples played.
 
-      bReady := (voiceState.BuffersQueued = 0);
+  TThread.Synchronize(nil,
+                      procedure
+                      var
+                        bReady: Boolean;
+                        voiceState: XAUDIO2_VOICE_STATE;
 
-      HandleThreadMessages(GetCurrentThread());
-    end;
+                        begin
+                          bReady := False;
+                          while not bReady and bPlaying and (pvSourceVoice <> nil) do
+                            begin
+                              pvSourceVoice.GetState(voiceState,
+                                                     0);
 
+                              bReady := (voiceState.BuffersQueued = 0);
+                              // Send score. Don't use PostMessage because it set priority above this thread.
+                              SendMessage(hwndCaller,
+                                          WM_DATA_PROCESSED_NOTIFY,
+                                          WPARAM((voiceState.SamplesPlayed div nSamplesPerSecond) * 10000000),
+                                          LPARAM(voiceState.SamplesPlayed));
+                            end;
+                        end);
 done:
   if SUCCEEDED(hr) then
     // Signal we are done playing.
@@ -453,8 +477,18 @@ begin
       Result := E_POINTER;
       Exit;
     end;
+
   Result := pvSourceVoice.Stop();
-  bPlaying := False;
+
+  if SUCCEEDED(Result) then
+    begin
+      bPlaying := False;
+      // We must call this first, to stop the XAudio2 threads.
+      pvXAudio2.StopEngine();
+      Result := pvSourceVoice.FlushSourceBuffers();
+      if SUCCEEDED(Result) then
+        Result := pvSourceVoice.Discontinuity();
+    end;
 end;
 
 
@@ -514,6 +548,5 @@ begin
   if FAILED(hr) then
     ShowMessage('Setting channelvolumes failed.');
 end;
-
 
 end.
