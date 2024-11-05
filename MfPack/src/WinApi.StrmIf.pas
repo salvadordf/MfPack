@@ -23,10 +23,11 @@
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
 // 30/06/2024 All                 RammStein release  SDK 10.0.26100.0 (Windows 11)
+// 21/09/2024 Tony                Changed properties for IAMCameraControl and IAMVideoProcAmp.
 //------------------------------------------------------------------------------
 //
 // Remarks: Requires Windows Vista or later.
-// 
+//
 // Related objects: -
 // Related projects: MfPackX317
 // Known Issues: -
@@ -2636,18 +2637,18 @@ type
   IAMVideoProcAmp = interface(IUnknown)
     ['{C6E13360-30AC-11d0-A18C-00A0C9118956}']
 
-    function GetRange(Property_: VideoProcAmpProperty; { VideoProcAmpProperty }
+    function GetRange(Property_: LONG { VideoProcAmpProperty };
                       out pMin: LONG;
                       out pMax: LONG;
                       out pSteppingDelta: LONG;
                       out pDefault: LONG;
                       out pCapsFlags: LONG { VideoProcAmpFlags }): HResult; stdcall;
 
-    function Set_(Property_: VideoProcAmpProperty;
+    function Set_(Property_: LONG; { VideoProcAmpProperty }
                   lValue: LONG;
                   Flags: LONG { VideoProcAmpFlags }): HResult; stdcall;
 
-    function Get(Property_: VideoProcAmpProperty { VideoProcAmpProperty };
+    function Get(Property_: LONG; { VideoProcAmpProperty }
                  out lValue: LONG;
                  out Flags: LONG { VideoProcAmpFlags }): HResult; stdcall;
 
@@ -2673,8 +2674,8 @@ type
 
   PCameraControlFlags = ^CameraControlFlags;
   tagCameraControlFlags = (
-    CameraControl_Flags_Manual = 1,
-    CameraControl_Flags_Auto   = 2
+    CameraControl_Flags_Manual = $1,
+    CameraControl_Flags_Auto   = $2
   );
   {$EXTERNALSYM tagCameraControlFlags}
   CameraControlFlags = tagCameraControlFlags;
@@ -2696,13 +2697,13 @@ type
                       out pDefault: LONG;
                       out pCapsFlags: LONG): HResult; stdcall;
 
-    function Set_(Property_: LONG { CameraControlProperty };
+    function Set_(Property_: LONG; { CameraControlProperty }
                   lValue: LONG;
                   Flags: LONG { CameraControlFlags} ): HResult; stdcall;
 
-    function Get( Property_: LONG { CameraControlProperty };
-                  out lValue: LONG;
-                  out Flags: LONG { CameraControlFlags }): HResult; stdcall;
+    function Get(Property_: LONG { CameraControlProperty };
+                 out lValue: LONG;
+                 out Flags: LONG { CameraControlFlags }): HResult; stdcall;
 
   end;
   IID_IAMCameraControl = IAMCameraControl;

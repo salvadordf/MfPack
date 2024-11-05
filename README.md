@@ -1,3 +1,10 @@
+### Before going on, some policy:
+- If you have a request, question, idea or need help, please commit to [Discussions](https://github.com/FactoryXCode/MfPack/discussions).
+
+- If you encounter a bug then [Issues](https://github.com/FactoryXCode/MfPack/issues) is the one and only place to be.
+
+
+
 # About MfPack
 
  Delphi translations for Microsoft Media Foundation and related API's.
@@ -75,6 +82,15 @@ SDK version: 10.0.26100.0 (Windows 11)
 
 
 ![](https://github.com/FactoryXCode/MfPack/blob/Master/MfPack/Pic/MfSimpleCapture.png)
+
+**Sample 2**
+
+*This sample shows how to implement camera and video controls using*
+
+*IAMCameraControl and IAMVideoProcAmp.*
+
+
+![](https://github.com/FactoryXCode/MfPack/blob/Master/MfPack/Pic/MfSimpleCapture_2.png)
 
 **MfPeakMeter and MfPeakMeterEx component sample**
 

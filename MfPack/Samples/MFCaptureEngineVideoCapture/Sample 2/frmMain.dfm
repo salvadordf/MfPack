@@ -1,89 +1,127 @@
-object Frm_SimpleCapture: TFrm_SimpleCapture
+object MainWindow: TMainWindow
   Left = 0
   Top = 0
-  Caption = 'MfSimpleCapture Sample 2'
-  ClientHeight = 410
-  ClientWidth = 829
-  Color = clBtnFace
+  Margins.Left = 2
+  Margins.Top = 2
+  Margins.Right = 2
+  Margins.Bottom = 2
+  Anchors = [akTop]
+  BorderWidth = 1
+  Caption = 'Capture Engine Application Sample 2'
+  ClientHeight = 674
+  ClientWidth = 1093
+  Color = clDarkslategray
+  DoubleBuffered = True
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
   Font.Name = 'Tahoma'
   Font.Style = []
-  Position = poScreenCenter
+  Menu = MainMenu
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
-  OnPaint = FormPaint
+  DesignSize = (
+    1093
+    674)
   TextHeight = 13
-  object pnlControls: TPanel
-    Left = 0
-    Top = 361
-    Width = 829
-    Height = 49
-    Align = alBottom
-    BevelInner = bvLowered
+  object pnlSnapShot: TPanel
+    Left = 754
+    Top = 0
+    Width = 338
+    Height = 234
+    Anchors = [akTop, akRight]
+    BevelOuter = bvNone
+    Color = clBackground
+    ParentBackground = False
+    ShowCaption = False
     TabOrder = 0
-    ExplicitTop = 344
-    ExplicitWidth = 823
-    object Button1: TButton
-      Left = 10
-      Top = 13
-      Width = 75
-      Height = 25
-      Caption = 'Exit'
+    ExplicitLeft = 748
+    object pbCapture: TPaintBox
+      Left = 0
+      Top = 0
+      Width = 338
+      Height = 206
+      Align = alClient
+      Color = clBackground
+      ParentColor = False
+      ExplicitLeft = 60
+      ExplicitWidth = 250
+    end
+    object pnlControls: TPanel
+      Left = 0
+      Top = 206
+      Width = 338
+      Height = 28
+      Align = alBottom
+      ParentBackground = False
+      ShowCaption = False
       TabOrder = 0
-      OnClick = Button1Click
-    end
-    object butGetDevice: TButton
-      Left = 183
-      Top = 13
-      Width = 108
-      Height = 25
-      Caption = 'Get Capture Device'
-      TabOrder = 1
-      OnClick = butGetDeviceClick
-    end
-    object butShowProperties: TButton
-      Left = 297
-      Top = 13
-      Width = 108
-      Height = 25
-      Caption = 'Properties'
-      Enabled = False
-      TabOrder = 2
-      OnClick = butShowPropertiesClick
+      object butSaveToFile: TButton
+        Left = 91
+        Top = 1
+        Width = 73
+        Height = 25
+        Hint = 'Save photo to file'
+        Caption = '&Save To File'
+        Enabled = False
+        ParentShowHint = False
+        ShowHint = True
+        TabOrder = 0
+        OnClick = butSaveToFileClick
+      end
+      object butTakePhoto: TButton
+        Left = 12
+        Top = 1
+        Width = 73
+        Height = 25
+        Hint = 'Save photo to file'
+        Caption = '&Take Photo'
+        Enabled = False
+        ParentShowHint = False
+        ShowHint = True
+        TabOrder = 1
+        OnClick = butTakePhotoClick
+      end
+      object chkNoPreview: TCheckBox
+        Left = 175
+        Top = 6
+        Width = 97
+        Height = 15
+        Caption = 'Auto Save'
+        TabOrder = 2
+      end
     end
   end
-  object pnlVideo: TPanel
-    Left = 0
-    Top = 0
-    Width = 481
-    Height = 361
-    Align = alClient
+  object pnlInfo: TPanel
+    Left = -2
+    Top = 648
+    Width = 1101
+    Height = 28
+    Align = alCustom
+    Anchors = [akLeft, akRight]
     AutoSize = True
-    BevelOuter = bvNone
-    Color = clNone
-    Ctl3D = False
+    Caption = '-'
     DoubleBuffered = True
     ParentBackground = False
-    ParentCtl3D = False
     ParentDoubleBuffered = False
-    ShowCaption = False
+    ParentShowHint = False
+    ShowHint = False
     TabOrder = 1
-    OnResize = pnlVideoResize
-    ExplicitWidth = 475
-    ExplicitHeight = 344
+    ExplicitTop = 631
+    ExplicitWidth = 1095
   end
   object pnlCameraAndVideoControl: TPanel
-    Left = 481
-    Top = 0
-    Width = 348
-    Height = 361
-    Align = alRight
+    Left = 754
+    Top = 235
+    Width = 338
+    Height = 222
+    Align = alCustom
+    Anchors = [akTop, akRight]
+    ParentBackground = False
+    ShowCaption = False
     TabOrder = 2
     Visible = False
-    ExplicitLeft = 475
-    ExplicitHeight = 344
+    ExplicitLeft = 748
     object Label1: TLabel
       Left = 14
       Top = 10
@@ -228,7 +266,6 @@ object Frm_SimpleCapture: TFrm_SimpleCapture
       Height = 21
       TabOrder = 1
       Text = 'Brightness '
-      OnSelect = cbxVideoControlPropertySelect
       Items.Strings = (
         'Brightness '
         'Contrast'
@@ -264,6 +301,7 @@ object Frm_SimpleCapture: TFrm_SimpleCapture
       ItemIndex = 0
       TabOrder = 3
       Text = 'Manual'
+      OnSelect = cbxVideoControlFlagsSelect
       Items.Strings = (
         'Manual'
         'Automatic')
@@ -277,7 +315,6 @@ object Frm_SimpleCapture: TFrm_SimpleCapture
       ItemIndex = 0
       TabOrder = 4
       Text = '0'
-      OnChange = HandleRotationChanged
       Items.Strings = (
         '0'
         '90'
@@ -308,5 +345,62 @@ object Frm_SimpleCapture: TFrm_SimpleCapture
       Items.Strings = (
         '0')
     end
+  end
+  object MainMenu: TMainMenu
+    Left = 74
+    Top = 37
+    object Capture1: TMenuItem
+      Caption = 'Capture'
+      object mnuChooseDevice: TMenuItem
+        Caption = 'Choose Device'
+        OnClick = mnuChooseDeviceClick
+      end
+      object mnuStartPreview: TMenuItem
+        Caption = 'Start Preview'
+        OnClick = mnuStartPreviewClick
+      end
+      object mnuStartRecording: TMenuItem
+        Caption = 'Start Recording'
+        Enabled = False
+        OnClick = mnuStartRecordingClick
+      end
+      object N1: TMenuItem
+        Caption = '-'
+      end
+      object Exit1: TMenuItem
+        Caption = 'Exit'
+        OnClick = Exit1Click
+      end
+    end
+    object Options1: TMenuItem
+      Caption = 'Options'
+      object mnuCameraVideoSettings: TMenuItem
+        Caption = 'Camera And Video Settings'
+        Enabled = False
+        OnClick = mnuCameraVideoSettingsClick
+      end
+      object mnuSetVideoOutputFormat: TMenuItem
+        Caption = 'Set Video Output Format'
+        OnClick = mnuSetVideoOutputFormatClick
+      end
+    end
+  end
+  object dlgSaveSnapShot: TSaveDialog
+    DefaultExt = '.bmp'
+    FileName = 'MyPhoto.bmp'
+    Filter = 
+      'BMP image (*.bmp)|*.bmp|PNG image (*.png)|*.png|JPEG image (*.jp' +
+      'g, *.jpeg)|*.jpg'
+    Left = 72
+    Top = 101
+  end
+  object dlgSaveVideo: TSaveDialog
+    DefaultExt = '.mp4'
+    FileName = 'MyVideo.mp4'
+    Filter = 
+      'MPEG-4 (MP4)|.mp4|Windows Media Video (WMV)|.wmv|Audio Video Int' +
+      'erleave (AVI)|.avi'
+    Left = 71
+    Top = 165
   end
 end
