@@ -931,20 +931,20 @@ type
     // Updates the source rectangle, destination rectangle, and border color for the video.
     // param cSrc: A pointer to an MFVideoNormalizedRect structure that specifies the source rectangle.
     //             The source rectangle defines the area of the video frame that is displayed.
-    //             If this parameter is Nil, the entire video frame is displayed.
+    //             If this parameter is nil, the entire video frame is displayed.
     // param cDst: A pointer to a RECT structure that specifies the destination rectangle.
     //             The destination rectangle defines the area of the window or DirectComposition
     //             visual where the video is drawn.
     // param pBorderClr: A pointer to an MFARGB structure that specifies the border color.
     // remarks
     //   In rendering mode, call this method to reposition the video, update the border color,
-    //   or repaint the video frame. If all of the parameters are Nil,
+    //   or repaint the video frame. If all of the parameters are nil,
     //   the method repaints the most recent video frame.
     //   In frame-server mode, this method has no effect.
     //   See Video Processor MFT for info regarding source and destination rectangles in the Video Processor MFT.
-    function UpdateVideoStream(pSrc: PMFVideoNormalizedRect = Nil;
-                               pDst: PRect = Nil;
-                               pBorderClr: PMFARGB = Nil): HResult; stdcall;
+    function UpdateVideoStream(pSrc: PMFVideoNormalizedRect = nil;
+                               pDst: PRect = nil;
+                               pBorderClr: PMFARGB = nil): HResult; stdcall;
 
     function GetBalance(): Double; stdcall;
 
