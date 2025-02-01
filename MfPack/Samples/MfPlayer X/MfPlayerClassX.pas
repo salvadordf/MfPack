@@ -23,12 +23,14 @@
 //                 Tony Kalf (maXcomX),
 //                 Peter Larson (ozships),
 //                 Jason Nelson (adaloveless)
+//                 Ciaran (Ciaran3)
 //
 //------------------------------------------------------------------------------
 // CHANGE LOG
 // Date       Person              Reason
 // ---------- ------------------- ----------------------------------------------
 // 30/06/2024 All                 RammStein release  SDK 10.0.26100.0 (Windows 11)
+// 09/01.2025 Ciaran              Fixed IMFRateSupport.IsRateSupported
 //------------------------------------------------------------------------------
 //
 // Remarks: Requires Windows 7 or higher.
@@ -865,16 +867,17 @@ var
   hr: HRESULT;
 
 begin
-  hr:= S_OK;
 
-try
   // Use assertions in debug mode only!
+  {$IFDEF DEBUG}
   Assert(bit <> nil);
+  {$ENDIF}
 
   // Set the biSize member of the structure to sizeof(BITMAPINFOHEADER)
   ZeroMemory(@bmi,
-             sizeof(BITMAPINFOHEADER));
-  bmi.biSize := sizeof(BITMAPINFOHEADER);
+             SizeOf(BITMAPINFOHEADER));
+
+  bmi.biSize := SizeOf(BITMAPINFOHEADER);
 
   data := nil;
   bufsize := $0000;
@@ -888,12 +891,12 @@ try
                                             timestamp);
       if FAILED(hr) then
         begin
-          Result := E_FAIL;
-          Exit;
+          Exit(E_FAIL);
         end;
       data := buffer;
     end;
 
+try
   if (bmi.biSizeImage > 0) and (data <> nil) then
     begin
       // Adjustments
@@ -904,7 +907,8 @@ try
           CopyMemory(Bit.ScanLine[i],
                      data,
                      bmi.biWidth * bmi.biBitCount div 8);
-          Inc(data, bmi.biWidth * bmi.biBitCount div 8);
+          Inc(data,
+              bmi.biWidth * bmi.biBitCount div 8);
         end;
 
       hr := S_OK;
@@ -2296,7 +2300,7 @@ begin
       // Check if rate 0 (scrubbing) is supported.
       hr:= m_pRateSupport.IsRateSupported(False,
                                           0,
-                                          fltmprate);
+                                          @fltmprate);
     end;
 
   if (SUCCEEDED(hr)) then
@@ -2362,14 +2366,14 @@ try
 
   hr := m_pRateSupport.IsRateSupported(False,
                                        frval,
-                                       flSuprate);
+                                       @flSuprate);
 
   if (FAILED(hr)) then
     begin
       bThin := True;
       hr := m_pRateSupport.IsRateSupported(True,
                                            frval,
-                                           flSuprate);
+                                           @flSuprate);
     end;
 
   if (FAILED(hr)) then
